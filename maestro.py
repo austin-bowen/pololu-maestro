@@ -129,8 +129,7 @@ class Maestro:
         self.targets_us: MutableSequence[float] = [0.] * 24
 
         # Servo minimum and maximum targets can be restricted to protect components
-        self.min_targets_us: MutableSequence[Optional[float]] = [None] * 24
-        self.max_targets_us: MutableSequence[Optional[float]] = [None] * 24
+        self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * 24
 
         self._closed = False
 
@@ -232,18 +231,27 @@ class Maestro:
         period_lsb, period_msb = _get_lsb_msb(period)
         self.send_cmd(bytes((SerialCommands.SET_PWM, on_time_lsb, on_time_msb, period_lsb, period_msb)))
 
-    def set_range(self, channel: int, min_us: float, max_us: float) -> None:
+    def set_limits(self, channel: int, min_us: float = None, max_us: float = None) -> None:
         """
         Set channels min and max value range.  Use this as a safety to protect from accidentally moving outside known
         safe parameters. A setting of 0 or None allows unrestricted movement.
 
         Note that the Maestro itself is configured to limit the range of servo travel which has precedence over these
-        values. Use the Maestro Control Center to configure ranges that are saved to the controller. Use setRange for
+        values. Use the Maestro Control Center to configure ranges that are saved to the controller. Use set_range for
         software controllable ranges.
         """
 
-        self.min_targets_us[channel] = min_us
-        self.max_targets_us[channel] = max_us
+        if min_us is not None and max_us is not None and min_us > max_us:
+            raise ValueError(
+                f'min_us must be less than or equal to max_us; '
+                f'got min_us={min_us} and max_us={max_us}.'
+            )
+
+        self.target_limits_us[channel] = (min_us, max_us)
+
+    def get_limits(self, channel: int) -> tuple[Optional[float], Optional[float]]:
+        """Return tuple of (min_us, max_us) for the specified channel."""
+        return self.target_limits_us[channel]
 
     def stop_channel(self, channel: int) -> None:
         """
@@ -259,14 +267,6 @@ class Maestro:
         """Causes the script to stop, if it is currently running."""
         self.send_cmd(bytes((SerialCommands.STOP_SCRIPT,)))
 
-    def get_min(self, channel: int) -> Optional[float]:
-        """Return minimum channel range value."""
-        return self.min_targets_us[channel]
-
-    def get_max(self, channel: int) -> Optional[float]:
-        """Return maximum channel range value."""
-        return self.max_targets_us[channel]
-
     def set_target(self, channel: int, target_us: float) -> None:
         """
         Set channel to a specified target value.  Servo will begin moving based
@@ -278,14 +278,14 @@ class Maestro:
         If channel is configured for digital output, values < 6000 = Low output
         """
 
+        min_target_us, max_target_us = self.get_limits(channel)
+
         # If min is defined and target is below, force to min
-        min_target_us = self.min_targets_us[channel]
-        if min_target_us and target_us < min_target_us:
+        if min_target_us is not None and target_us < min_target_us:
             target_us = min_target_us
 
         # If max is defined and target is above, force to max
-        max_target_us = self.max_targets_us[channel]
-        if max_target_us and target_us > max_target_us:
+        if max_target_us is not None and target_us > max_target_us:
             target_us = max_target_us
 
         # Record target value
