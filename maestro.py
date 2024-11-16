@@ -461,3 +461,47 @@ class Maestro:
 class MicroMaestroNotSupportedError(Exception):
     """Raised when calling a method that is not supported by the Micro Maestro."""
     pass
+
+
+def main() -> None:
+    default_tty = '/dev/ttyACM0'
+    tty = input(f'Enter tty port [{default_tty}]: ') or default_tty
+
+    is_micro = input('Is this a Micro Maestro? [y/N]: ').lower() == 'y'
+
+    print('Connecting to Maestro...')
+    with Maestro(is_micro, tty=tty) as maestro:
+        print('Connected!')
+        print()
+        print('Set servo position targets by typing "<channel> <target_us>" below.')
+        print('A target of 1500 (us) is typically the center position.')
+        print('A target of 0 will turn off the servo.')
+        print()
+        print('Press Ctrl+C to exit.')
+        print()
+
+        def handle_command() -> None:
+            command = input('<channel> <target_us>: ')
+            if not command:
+                return
+
+            channel, target_us = command.split()
+
+            channel = int(channel)
+            target_us = float(target_us)
+
+            maestro.set_target(channel, target_us)
+
+        while True:
+            try:
+                handle_command()
+            except KeyboardInterrupt:
+                print()
+                print('Exiting')
+                return
+            except Exception as e:
+                print(f'Error: {e!r}')
+
+
+if __name__ == '__main__':
+    main()
