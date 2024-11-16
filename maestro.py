@@ -104,11 +104,17 @@ class Maestro:
             timeout: float = None
     ):
         """
-        :param is_micro: Whether or not the device is the Micro Maestro, which lacks some functionality.
-        :param tty:
-        :param device:
-        :param safe_close: If `True`, tells the Maestro to stop sending servo signals before closing the connection.
-        :param timeout: Read timeout in seconds.
+        Args:
+            is_micro:
+                Whether the device is the Micro Maestro, which lacks some functionality.
+            tty:
+                The tty port to use.
+            device:
+                The device number.
+            safe_close:
+                If `True`, tells the Maestro to stop sending servo signals before closing the connection.
+            timeout:
+                Read timeout in seconds.
         """
 
         self.is_micro = is_micro
@@ -141,8 +147,10 @@ class Maestro:
 
     def _read(self, byte_count: int) -> bytes:
         """
-        :raises TimeoutError: Connection timed out waiting to read the specified number of bytes.
+        Raises:
+            TimeoutError: Connection timed out waiting to read the specified number of bytes.
         """
+
         assert byte_count > 0
         data = self._usb.read(byte_count)
         if len(data) != byte_count:
@@ -174,9 +182,12 @@ class Maestro:
         See the Errors class for error values that can be and-ed with the result of this method to determine exactly
         which errors have occurred.
 
-        :return: 0 if no errors have occurred since the last check; non-zero if an error has occurred.
-        :raises TimeoutError: Connection timed out.
+        Returns 0 if no errors have occurred since the last check; non-zero if an error has occurred.
+
+        Raises:
+            TimeoutError: Connection timed out.
         """
+
         self.send_cmd(bytes((SerialCommands.GET_ERRORS,)))
         data = self._read(2)
         return data[0] << 8 | data[1]
@@ -190,9 +201,12 @@ class Maestro:
 
     def script_is_running(self):
         """
-        :return: True if a script is running; False otherwise.
-        :raises TimeoutError: Connection timed out.
+        Returns True if a script is running; False otherwise.
+
+        Raises:
+            TimeoutError: Connection timed out.
         """
+
         self.send_cmd(bytes((SerialCommands.GET_SCRIPT_STATUS,)))
 
         # Maestro returns 0x00 if a script is running
@@ -209,9 +223,11 @@ class Maestro:
         Sets the PWM output to the specified on time and period.
         This command is not available on the Micro Maestro.
 
-        :param on_time_us: PWM on-time in microseconds.
-        :param period_us: PWM period in microseconds.
+        Args:
+            on_time_us: PWM on-time in microseconds.
+            period_us: PWM period in microseconds.
         """
+
         on_time = int(round(48 * on_time_us))  # The command uses 1/48th us intervals
         on_time_lsb, on_time_msb = _get_lsb_msb(on_time)
         period = int(round(48 * period_us))  # The command uses 1/48th us intervals
@@ -227,6 +243,7 @@ class Maestro:
         values. Use the Maestro Control Center to configure ranges that are saved to the controller. Use setRange for
         software controllable ranges.
         """
+
         self.min_targets_us[channel] = min_us
         self.max_targets_us[channel] = max_us
 
@@ -234,8 +251,10 @@ class Maestro:
         """
         Sets the target of the specified channel to 0, causing the Maestro to stop sending PWM signals on that channel.
 
-        :param channel: PWM channel to stop sending PWM signals to.
+        Args:
+             channel: PWM channel to stop sending PWM signals to.
         """
+
         self.set_target(channel, 0)
 
     def stop_script(self):
@@ -289,8 +308,10 @@ class Maestro:
         The other Maestro models, however, support the option of setting the targets for a block of channels using a
         single command.  This method will use that "set multiple targets" command when possible, for maximum efficiency.
 
-        :param targets: A dict mapping channels to their targets (in microseconds).
+        Args:
+            targets: A dict mapping channels to their targets (in microseconds).
         """
+
         if self.is_micro:
             for channel, target in targets.items():
                 self.set_target(channel, target)
@@ -337,6 +358,7 @@ class Maestro:
         For the standard 1ms pulse width change to move a servo between extremes, a speed
         of 1 will take 1 minute, and a speed of 60 would take 1 second. Speed of 0 is unrestricted.
         """
+
         lsb, msb = _get_lsb_msb(speed)
         self.send_cmd(bytes((SerialCommands.SET_SPEED, channel, lsb, msb)))
 
@@ -347,6 +369,7 @@ class Maestro:
         Valid values are from 0 to 255. 0 = unrestricted, 1 is slowest start.
         A value of 1 will take the servo about 3s to move between 1ms to 2ms range.
         """
+
         lsb, msb = _get_lsb_msb(acceleration)
         self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
 
@@ -360,8 +383,10 @@ class Maestro:
         the position result will align well with the actual servo position, assuming
         it is not stalled or slowed.
 
-        :raises TimeoutError: Connection timed out.
+        Raises:
+            TimeoutError: Connection timed out.
         """
+
         self.send_cmd(bytes((SerialCommands.GET_POSITION, chan)))
         data = self._read(2)
         return (data[0] << 8 | data[1]) / 4
@@ -376,6 +401,7 @@ class Maestro:
         channel, then the target can never be reached, so it will appear to always be
         moving to the target.
         """
+
         target_us = self.targets_us[channel]
         return target_us and abs(target_us - self.get_position(channel)) < 0.01
 
@@ -387,9 +413,12 @@ class Maestro:
         command together with the set_target command, you can initiate several servo movements and wait for all the
         movements to finish before moving on to the next step of your program.
 
-        :returns: True if the Maestro reports that servos are still moving; False otherwise.
-        :raises TimeoutError: Connection timed out.
+        Returns True if the Maestro reports that servos are still moving; False otherwise.
+
+        Raises:
+            TimeoutError: Connection timed out.
         """
+
         self.send_cmd(bytes((SerialCommands.GET_MOVING_STATE,)))
         return self._read(1)[0] == 1
 
@@ -402,8 +431,10 @@ class Maestro:
         should not end with the RETURN command, since there is no place to return to — instead, they should contain
         infinite loops or end with a QUIT command.
 
-        :param subroutine: The subroutine number to run.
+        Args:
+            subroutine: The subroutine number to run.
         """
+
         self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
 
     def run_script_subroutine_with_parameter(self, subroutine: int, parameter: int):
@@ -412,10 +443,11 @@ class Maestro:
         starting the subroutine. Since data bytes can only contain 7 bits of data, the parameter must be between
         0 and 16383.
 
-        :param subroutine: The subroutine number to run.
-        :param parameter: The integer parameter to pass to the subroutine (range: 0 to 16383).
-        :return:
+        Args:
+            subroutine: The subroutine number to run.
+            parameter: The integer parameter to pass to the subroutine (range: 0 to 16383).
         """
+
         parameter_lsb, parameter_msb = _get_lsb_msb(parameter)
         self.send_cmd(bytes((
             SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
