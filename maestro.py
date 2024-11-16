@@ -15,6 +15,44 @@ from typing import Mapping, MutableSequence, Union
 import serial
 
 
+class SerialCommands:
+    # Headers
+    POLOLU_PROTOCOL = 0xAA
+    DEFAULT_DEVICE_NUMBER = 0x0C
+
+    # Commands
+    SET_TARGET = 0x04
+    SET_SPEED = 0x07
+    SET_ACCELERATION = 0x09
+    GET_POSITION = 0x10
+    GET_ERRORS = 0x21
+    GO_HOME = 0x22
+    STOP_SCRIPT = 0x24
+    RESTART_SCRIPT_AT_SUBROUTINE = 0x27
+    RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER = 0x28
+    GET_SCRIPT_STATUS = 0x2E
+    # - Not available on the Micro
+    SET_PWM = 0x0A
+    GET_MOVING_STATE = 0x13
+    SET_MULTIPLE_TARGETS = 0x1F
+
+
+class Errors:
+    """
+    See the documentation for descriptions of these errors:
+    https://www.pololu.com/docs/0J40/4.e
+    """
+    SERIAL_SIGNAL_ERROR = 1 << 0
+    SERIAL_OVERRUN_ERROR = 1 << 1
+    SERIAL_BUFFER_FULL_ERROR = 1 << 2
+    SERIAL_CRC_ERROR = 1 << 3
+    SERIAL_PROTOCOL_ERROR = 1 << 4
+    SERIAL_TIMEOUT_ERROR = 1 << 5
+    SCRIPT_STACK_ERROR = 1 << 6
+    SCRIPT_CALL_STACK_ERROR = 1 << 7
+    SCRIPT_PROGRAM_COUNTER_ERROR = 1 << 8
+
+
 def _micro_maestro_not_supported(method):
     """
     Methods using this decorator will raise a MicroMaestroNotSupportedError if the Controller is for the Micro Maestro.
@@ -57,42 +95,6 @@ class Maestro:
     TODO: Automatic serial reconnect.
     """
 
-    class SerialCommands:
-        # Headers
-        POLOLU_PROTOCOL = 0xAA
-        DEFAULT_DEVICE_NUMBER = 0x0C
-
-        # Commands
-        SET_TARGET = 0x04
-        SET_SPEED = 0x07
-        SET_ACCELERATION = 0x09
-        GET_POSITION = 0x10
-        GET_ERRORS = 0x21
-        GO_HOME = 0x22
-        STOP_SCRIPT = 0x24
-        RESTART_SCRIPT_AT_SUBROUTINE = 0x27
-        RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER = 0x28
-        GET_SCRIPT_STATUS = 0x2E
-        # - Not available on the Micro
-        SET_PWM = 0x0A
-        GET_MOVING_STATE = 0x13
-        SET_MULTIPLE_TARGETS = 0x1F
-
-    class Errors:
-        """
-        See the documentation for descriptions of these errors:
-        https://www.pololu.com/docs/0J40/4.e
-        """
-        SERIAL_SIGNAL_ERROR = 1 << 0
-        SERIAL_OVERRUN_ERROR = 1 << 1
-        SERIAL_BUFFER_FULL_ERROR = 1 << 2
-        SERIAL_CRC_ERROR = 1 << 3
-        SERIAL_PROTOCOL_ERROR = 1 << 4
-        SERIAL_TIMEOUT_ERROR = 1 << 5
-        SCRIPT_STACK_ERROR = 1 << 6
-        SCRIPT_CALL_STACK_ERROR = 1 << 7
-        SCRIPT_PROGRAM_COUNTER_ERROR = 1 << 8
-
     def __init__(
             self,
             is_micro: bool,
@@ -115,7 +117,7 @@ class Maestro:
         self._usb = serial.Serial(tty, timeout=timeout)
 
         # Command lead-in and device number are sent for each Pololu serial command.
-        self._pololu_cmd = bytes((self.SerialCommands.POLOLU_PROTOCOL, device))
+        self._pololu_cmd = bytes((SerialCommands.POLOLU_PROTOCOL, device))
 
         self.safe_close = safe_close
 
@@ -175,7 +177,7 @@ class Maestro:
         :return: 0 if no errors have occurred since the last check; non-zero if an error has occurred.
         :raises TimeoutError: Connection timed out.
         """
-        self.send_cmd(bytes((self.SerialCommands.GET_ERRORS,)))
+        self.send_cmd(bytes((SerialCommands.GET_ERRORS,)))
         data = self._read(2)
         return data[0] << 8 | data[1]
 
@@ -184,14 +186,14 @@ class Maestro:
         Sends all servos and outputs to their home positions, just as if an error had occurred. For servos and outputs
         set to "Ignore", the position will be unchanged.
         """
-        self.send_cmd(bytes((self.SerialCommands.GO_HOME,)))
+        self.send_cmd(bytes((SerialCommands.GO_HOME,)))
 
     def script_is_running(self):
         """
         :return: True if a script is running; False otherwise.
         :raises TimeoutError: Connection timed out.
         """
-        self.send_cmd(bytes((self.SerialCommands.GET_SCRIPT_STATUS,)))
+        self.send_cmd(bytes((SerialCommands.GET_SCRIPT_STATUS,)))
 
         # Maestro returns 0x00 if a script is running
         return self._read(1)[0] == 0
@@ -214,7 +216,7 @@ class Maestro:
         on_time_lsb, on_time_msb = _get_lsb_msb(on_time)
         period = int(round(48 * period_us))  # The command uses 1/48th us intervals
         period_lsb, period_msb = _get_lsb_msb(period)
-        self.send_cmd(bytes((self.SerialCommands.SET_PWM, on_time_lsb, on_time_msb, period_lsb, period_msb)))
+        self.send_cmd(bytes((SerialCommands.SET_PWM, on_time_lsb, on_time_msb, period_lsb, period_msb)))
 
     def set_range(self, channel: int, min_us: Union[int, float], max_us: Union[int, float]):
         """
@@ -238,7 +240,7 @@ class Maestro:
 
     def stop_script(self):
         """Causes the script to stop, if it is currently running."""
-        self.send_cmd(bytes((self.SerialCommands.STOP_SCRIPT,)))
+        self.send_cmd(bytes((SerialCommands.STOP_SCRIPT,)))
 
     def get_min(self, channel: int):
         """Return minimum channel range value."""
@@ -275,7 +277,7 @@ class Maestro:
         # Send the target to the Maestro
         target = int(round(4 * target_us))
         lsb, msb = _get_lsb_msb(target)
-        self.send_cmd(bytes((self.SerialCommands.SET_TARGET, channel, lsb, msb)))
+        self.send_cmd(bytes((SerialCommands.SET_TARGET, channel, lsb, msb)))
 
     def set_targets(self, targets: Mapping[int, Union[int, float]]):
         """
@@ -322,7 +324,7 @@ class Maestro:
                 # If there is more than one target in the block, set them all at once with the
                 # "set multiple targets" command.
                 else:
-                    cmd = bytearray((self.SerialCommands.SET_MULTIPLE_TARGETS, target_count, first_channel))
+                    cmd = bytearray((SerialCommands.SET_MULTIPLE_TARGETS, target_count, first_channel))
                     for target in target_block:
                         target = int(float(4 * target))
                         cmd += bytes(_get_lsb_msb(target))
@@ -336,7 +338,7 @@ class Maestro:
         of 1 will take 1 minute, and a speed of 60 would take 1 second. Speed of 0 is unrestricted.
         """
         lsb, msb = _get_lsb_msb(speed)
-        self.send_cmd(bytes((self.SerialCommands.SET_SPEED, channel, lsb, msb)))
+        self.send_cmd(bytes((SerialCommands.SET_SPEED, channel, lsb, msb)))
 
     def set_acceleration(self, channel: int, acceleration: int):
         """
@@ -346,7 +348,7 @@ class Maestro:
         A value of 1 will take the servo about 3s to move between 1ms to 2ms range.
         """
         lsb, msb = _get_lsb_msb(acceleration)
-        self.send_cmd(bytes((self.SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
+        self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
 
     def get_position(self, chan: int):
         """
@@ -360,7 +362,7 @@ class Maestro:
 
         :raises TimeoutError: Connection timed out.
         """
-        self.send_cmd(bytes((self.SerialCommands.GET_POSITION, chan)))
+        self.send_cmd(bytes((SerialCommands.GET_POSITION, chan)))
         data = self._read(2)
         return (data[0] << 8 | data[1]) / 4
 
@@ -388,7 +390,7 @@ class Maestro:
         :returns: True if the Maestro reports that servos are still moving; False otherwise.
         :raises TimeoutError: Connection timed out.
         """
-        self.send_cmd(bytes((self.SerialCommands.GET_MOVING_STATE,)))
+        self.send_cmd(bytes((SerialCommands.GET_MOVING_STATE,)))
         return self._read(1)[0] == 1
 
     def run_script_subroutine(self, subroutine: int):
@@ -402,7 +404,7 @@ class Maestro:
 
         :param subroutine: The subroutine number to run.
         """
-        self.send_cmd(bytes((self.SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
+        self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
 
     def run_script_subroutine_with_parameter(self, subroutine: int, parameter: int):
         """
@@ -416,7 +418,7 @@ class Maestro:
         """
         parameter_lsb, parameter_msb = _get_lsb_msb(parameter)
         self.send_cmd(bytes((
-            self.SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
+            SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
             subroutine,
             parameter_lsb,
             parameter_msb
