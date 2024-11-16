@@ -12,6 +12,8 @@ from typing import Mapping, MutableSequence, Optional, Union
 
 import serial
 
+MAX_CHANNELS = 24
+
 
 class SerialCommands:
     # Headers
@@ -126,10 +128,10 @@ class Maestro:
         self.safe_close = safe_close
 
         # Track target position for each servo
-        self.targets_us: MutableSequence[float] = [0.] * 24
+        self.targets_us: MutableSequence[float] = [0.] * MAX_CHANNELS
 
         # Servo minimum and maximum targets can be restricted to protect components
-        self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * 24
+        self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * MAX_CHANNELS
 
         self._closed = False
 
@@ -161,7 +163,7 @@ class Maestro:
             return
 
         if self.safe_close:
-            for channel in range(24):
+            for channel in range(MAX_CHANNELS):
                 self.stop_channel(channel)
 
         self._usb.close()
