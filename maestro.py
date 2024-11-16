@@ -4,13 +4,11 @@ Maestro Servo Controller
 Support for the Pololu Maestro line of servo controllers:
 https://www.pololu.com/docs/0J40
 
-Originally cloned from: https://github.com/FRC4564/Maestro/
-
 These functions provide access to many of the Maestro's capabilities using the Pololu serial protocol.
 """
 
 from functools import wraps
-from typing import Mapping, MutableSequence, Union
+from typing import Mapping, MutableSequence, Optional, Union
 
 import serial
 
@@ -63,7 +61,7 @@ def _micro_maestro_not_supported(method):
         __doc__ = method.__doc__
         if self.is_micro:
             raise MicroMaestroNotSupportedError(
-                'The method "{}" is not supported by the Micro Maestro.'.format(method.__name__)
+                f'The method {method.__name__!r} is not supported by the Micro Maestro.'
             )
 
         return method(self, *args, **kwargs)
@@ -71,8 +69,8 @@ def _micro_maestro_not_supported(method):
     return wrapper
 
 
-def _get_lsb_msb(value: int):
-    assert 0 <= value <= 16383, 'value was {}; must be in the range of [0, 2^14 - 1].'.format(value)
+def _get_lsb_msb(value: int) -> tuple[int, int]:
+    assert 0 <= value <= 16383, f'value was {value}; must be in the range of [0, 2^14 - 1].'
     lsb = value & 0x7F  # 7 bits for least significant byte
     msb = (value >> 7) & 0x7F  # shift 7 and take next 7 bits for msb
     return lsb, msb
@@ -128,18 +126,18 @@ class Maestro:
         self.safe_close = safe_close
 
         # Track target position for each servo
-        self.targets_us: MutableSequence[Union[int, float]] = [0] * 24
+        self.targets_us: MutableSequence[float] = [0.] * 24
 
         # Servo minimum and maximum targets can be restricted to protect components
-        self.min_targets_us: MutableSequence[Union[None, int, float]] = [None] * 24
-        self.max_targets_us: MutableSequence[Union[None, int, float]] = [None] * 24
+        self.min_targets_us: MutableSequence[Optional[float]] = [None] * 24
+        self.max_targets_us: MutableSequence[Optional[float]] = [None] * 24
 
         self._closed = False
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
-    def __enter__(self):
+    def __enter__(self) -> 'Maestro':
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -154,13 +152,12 @@ class Maestro:
         assert byte_count > 0
         data = self._usb.read(byte_count)
         if len(data) != byte_count:
-            raise TimeoutError(
-                'Tried to read {} bytes, but only got {}.'.format(byte_count, len(data))
-            )
+            raise TimeoutError(f'Tried to read {byte_count} bytes, but only got {len(data)}.')
         return data
 
-    def close(self):
+    def close(self) -> None:
         """Cleanup by closing USB serial port."""
+
         if self._closed:
             return
 
@@ -172,7 +169,7 @@ class Maestro:
 
         self._closed = True
 
-    def get_errors(self):
+    def get_errors(self) -> int:
         """
         Use this command to examine the errors that the Maestro has detected. Section 4.e lists the specific errors that
         can be detected by the Maestro. The error register is sent as a two-byte response immediately after the command
@@ -192,14 +189,15 @@ class Maestro:
         data = self._read(2)
         return data[0] << 8 | data[1]
 
-    def go_home(self):
+    def go_home(self) -> None:
         """
-        Sends all servos and outputs to their home positions, just as if an error had occurred. For servos and outputs
-        set to "Ignore", the position will be unchanged.
+        Sends all servos and outputs to their home positions, just as if an error had occurred.
+        For servos and outputs set to "Ignore", the position will be unchanged.
         """
+
         self.send_cmd(bytes((SerialCommands.GO_HOME,)))
 
-    def script_is_running(self):
+    def script_is_running(self) -> bool:
         """
         Returns True if a script is running; False otherwise.
 
@@ -209,16 +207,16 @@ class Maestro:
 
         self.send_cmd(bytes((SerialCommands.GET_SCRIPT_STATUS,)))
 
-        # Maestro returns 0x00 if a script is running
-        return self._read(1)[0] == 0
+        is_running = 0
+        return self._read(1)[0] == is_running
 
-    def send_cmd(self, cmd: Union[bytes, bytearray]):
+    def send_cmd(self, cmd: Union[bytes, bytearray]) -> None:
         """Send a Pololu command out the serial port."""
         self._usb.write(self._pololu_cmd + cmd)
         self._usb.flush()
 
     @_micro_maestro_not_supported
-    def set_pwm(self, on_time_us: Union[int, float], period_us: Union[int, float]):
+    def set_pwm(self, on_time_us: float, period_us: float) -> None:
         """
         Sets the PWM output to the specified on time and period.
         This command is not available on the Micro Maestro.
@@ -234,7 +232,7 @@ class Maestro:
         period_lsb, period_msb = _get_lsb_msb(period)
         self.send_cmd(bytes((SerialCommands.SET_PWM, on_time_lsb, on_time_msb, period_lsb, period_msb)))
 
-    def set_range(self, channel: int, min_us: Union[int, float], max_us: Union[int, float]):
+    def set_range(self, channel: int, min_us: float, max_us: float) -> None:
         """
         Set channels min and max value range.  Use this as a safety to protect from accidentally moving outside known
         safe parameters. A setting of 0 or None allows unrestricted movement.
@@ -247,7 +245,7 @@ class Maestro:
         self.min_targets_us[channel] = min_us
         self.max_targets_us[channel] = max_us
 
-    def stop_channel(self, channel: int):
+    def stop_channel(self, channel: int) -> None:
         """
         Sets the target of the specified channel to 0, causing the Maestro to stop sending PWM signals on that channel.
 
@@ -257,19 +255,19 @@ class Maestro:
 
         self.set_target(channel, 0)
 
-    def stop_script(self):
+    def stop_script(self) -> None:
         """Causes the script to stop, if it is currently running."""
         self.send_cmd(bytes((SerialCommands.STOP_SCRIPT,)))
 
-    def get_min(self, channel: int):
+    def get_min(self, channel: int) -> Optional[float]:
         """Return minimum channel range value."""
         return self.min_targets_us[channel]
 
-    def get_max(self, channel: int):
+    def get_max(self, channel: int) -> Optional[float]:
         """Return maximum channel range value."""
         return self.max_targets_us[channel]
 
-    def set_target(self, channel: int, target_us: Union[int, float]):
+    def set_target(self, channel: int, target_us: float) -> None:
         """
         Set channel to a specified target value.  Servo will begin moving based
         on Speed and Acceleration parameters previously set.
@@ -298,7 +296,7 @@ class Maestro:
         lsb, msb = _get_lsb_msb(target)
         self.send_cmd(bytes((SerialCommands.SET_TARGET, channel, lsb, msb)))
 
-    def set_targets(self, targets: Mapping[int, Union[int, float]]):
+    def set_targets(self, targets: Mapping[int, float]) -> None:
         """
         Set multiple channel targets at once.
 
@@ -312,46 +310,47 @@ class Maestro:
             targets: A dict mapping channels to their targets (in microseconds).
         """
 
+        # Micro Maestros do not support sending blocks of target values with one command
         if self.is_micro:
             for channel, target in targets.items():
                 self.set_target(channel, target)
 
-        # Non-Micro Maestros support sending blocks of target values with one command
-        else:
-            # Use targets to build a structure of target blocks
-            channels = sorted(targets.keys())
-            prev_channel = first_channel = channels[0]
-            target = targets[first_channel]
-            # Structure: {channelM: [targetM, targetM+1, ..., targetN], ...}
-            target_blocks = {first_channel: [target]}
-            for channel in channels[1:]:
-                target = targets[channel]
+            return
 
-                if channel - 1 == prev_channel:
-                    target_blocks[first_channel].append(target)
-                else:
-                    first_channel = channel
-                    target_blocks[first_channel] = [target]
+        # Use targets to build a structure of target blocks
+        channels = sorted(targets.keys())
+        prev_channel = first_channel = channels[0]
+        target = targets[first_channel]
+        # Structure: {channelM: [targetM, targetM+1, ..., targetN], ...}
+        target_blocks = {first_channel: [target]}
+        for channel in channels[1:]:
+            target = targets[channel]
 
-                prev_channel = channel
+            if channel - 1 == prev_channel:
+                target_blocks[first_channel].append(target)
+            else:
+                first_channel = channel
+                target_blocks[first_channel] = [target]
 
-            for first_channel, target_block in target_blocks.items():
-                target_count = len(target_block)
+            prev_channel = channel
 
-                # If there is only one target in the block, use the single "set target" command
-                if target_count == 1:
-                    self.set_target(first_channel, target_block[0])
+        for first_channel, target_block in target_blocks.items():
+            target_count = len(target_block)
 
-                # If there is more than one target in the block, set them all at once with the
-                # "set multiple targets" command.
-                else:
-                    cmd = bytearray((SerialCommands.SET_MULTIPLE_TARGETS, target_count, first_channel))
-                    for target in target_block:
-                        target = int(float(4 * target))
-                        cmd += bytes(_get_lsb_msb(target))
-                    self.send_cmd(cmd)
+            # If there is only one target in the block, use the single "set target" command
+            if target_count == 1:
+                self.set_target(first_channel, target_block[0])
 
-    def set_speed(self, channel: int, speed: int):
+            # If there is more than one target in the block, set them all at once with the
+            # "set multiple targets" command.
+            else:
+                cmd = bytearray((SerialCommands.SET_MULTIPLE_TARGETS, target_count, first_channel))
+                for target in target_block:
+                    target = int(float(4 * target))
+                    cmd += bytes(_get_lsb_msb(target))
+                self.send_cmd(cmd)
+
+    def set_speed(self, channel: int, speed: int) -> None:
         """
         Set speed of channel
         Speed is measured as 0.25microseconds/10milliseconds
@@ -362,7 +361,7 @@ class Maestro:
         lsb, msb = _get_lsb_msb(speed)
         self.send_cmd(bytes((SerialCommands.SET_SPEED, channel, lsb, msb)))
 
-    def set_acceleration(self, channel: int, acceleration: int):
+    def set_acceleration(self, channel: int, acceleration: int) -> None:
         """
         Set acceleration of channel
         This provide soft starts and finishes when servo moves to target position.
@@ -373,7 +372,7 @@ class Maestro:
         lsb, msb = _get_lsb_msb(acceleration)
         self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
 
-    def get_position(self, chan: int):
+    def get_position(self, channel: int) -> float:
         """
         Get the current position of the device on the specified channel
         The result is returned in a measure of quarter-microseconds, which mirrors
@@ -387,11 +386,11 @@ class Maestro:
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(bytes((SerialCommands.GET_POSITION, chan)))
+        self.send_cmd(bytes((SerialCommands.GET_POSITION, channel)))
         data = self._read(2)
         return (data[0] << 8 | data[1]) / 4
 
-    def is_moving(self, channel: int):
+    def is_moving(self, channel: int) -> bool:
         """
         Test to see if a servo has reached the set target position.  This only provides
         useful results if the Speed parameter is set slower than the maximum speed of
@@ -406,7 +405,7 @@ class Maestro:
         return target_us and abs(target_us - self.get_position(channel)) < 0.01
 
     @_micro_maestro_not_supported
-    def servos_are_moving(self):
+    def servos_are_moving(self) -> bool:
         """
         Determines whether the servo outputs have reached their targets or are still changing, and will return True as
         long as there is at least one servo that is limited by a speed or acceleration setting still moving. Using this
@@ -422,7 +421,7 @@ class Maestro:
         self.send_cmd(bytes((SerialCommands.GET_MOVING_STATE,)))
         return self._read(1)[0] == 1
 
-    def run_script_subroutine(self, subroutine: int):
+    def run_script_subroutine(self, subroutine: int) -> None:
         """
         Starts the script running at a location specified by the subroutine number argument. The subroutines are
         numbered in the order they are defined in your script, starting with 0 for the first subroutine. The first
@@ -437,7 +436,7 @@ class Maestro:
 
         self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
 
-    def run_script_subroutine_with_parameter(self, subroutine: int, parameter: int):
+    def run_script_subroutine_with_parameter(self, subroutine: int, parameter: int) -> None:
         """
         This method is just like the "run_script_subroutine" method, except it loads a parameter on to the stack before
         starting the subroutine. Since data bytes can only contain 7 bits of data, the parameter must be between
@@ -453,7 +452,7 @@ class Maestro:
             SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
             subroutine,
             parameter_lsb,
-            parameter_msb
+            parameter_msb,
         )))
 
 
