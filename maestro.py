@@ -585,6 +585,11 @@ def main() -> None:
     print('Connected!')
 
     with maestro:
+        if maestro.script_is_running():
+            print('Stopping running script... ', end='', flush=True)
+            maestro.stop_script()
+            print('Done')
+
         print()
         print('Set servo position targets by typing "<channel> <target_us>" below.')
         print('A target of 1500 (us) is typically the center position.')
