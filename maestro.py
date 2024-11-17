@@ -9,6 +9,7 @@ These functions provide access to many of the Maestro's capabilities using the P
 
 import argparse
 import platform
+import time
 from abc import ABC, abstractmethod
 from typing import Mapping, MutableSequence, Optional, Union
 
@@ -340,7 +341,22 @@ class Maestro(ABC):
         target_us = self.targets_us[channel]
         return target_us and abs(target_us - self.get_position(channel)) < 0.01
 
-    def run_script_subroutine(self, subroutine: int) -> None:
+    @abstractmethod
+    def any_are_moving(self) -> bool:
+        ...
+
+    def wait_until_done_moving(self, poll_period: float = 0.1) -> None:
+        """
+        Wait until all servos have reached their target positions.
+
+        Args:
+            poll_period: Time in seconds to wait between checking if servos are still moving.
+        """
+
+        while self.any_are_moving():
+            time.sleep(poll_period)
+
+    def run_script_subroutine(self, subroutine: int, parameter: int = None) -> None:
         """
         Starts the script running at a location specified by the subroutine number argument. The subroutines are
         numbered in the order they are defined in your script, starting with 0 for the first subroutine. The first
@@ -351,28 +367,19 @@ class Maestro(ABC):
 
         Args:
             subroutine: The subroutine number to run.
+            parameter: (Optional) The integer parameter to pass to the subroutine (range: 0 to 16383).
         """
 
-        self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
-
-    def run_script_subroutine_with_parameter(self, subroutine: int, parameter: int) -> None:
-        """
-        This method is just like the "run_script_subroutine" method, except it loads a parameter on to the stack before
-        starting the subroutine. Since data bytes can only contain 7 bits of data, the parameter must be between
-        0 and 16383.
-
-        Args:
-            subroutine: The subroutine number to run.
-            parameter: The integer parameter to pass to the subroutine (range: 0 to 16383).
-        """
-
-        parameter_lsb, parameter_msb = _get_lsb_msb(parameter)
-        self.send_cmd(bytes((
-            SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
-            subroutine,
-            parameter_lsb,
-            parameter_msb,
-        )))
+        if parameter is None:
+            self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
+        else:
+            parameter_lsb, parameter_msb = _get_lsb_msb(parameter)
+            self.send_cmd(bytes((
+                SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
+                subroutine,
+                parameter_lsb,
+                parameter_msb,
+            )))
 
 
 class MicroMaestro(Maestro):
@@ -422,6 +429,9 @@ class MicroMaestro(Maestro):
 
         for channel, target in targets.items():
             self.set_target(channel, target)
+
+    def any_are_moving(self) -> bool:
+        return any(self.is_moving(c) for c in range(self.channels))
 
 
 class MiniMaestro(Maestro):
@@ -531,7 +541,7 @@ class MiniMaestro(Maestro):
         period_lsb, period_msb = _get_lsb_msb(period)
         self.send_cmd(bytes((SerialCommands.SET_PWM, on_time_lsb, on_time_msb, period_lsb, period_msb)))
 
-    def servos_are_moving(self) -> bool:
+    def any_are_moving(self) -> bool:
         """
         Determines whether the servo outputs have reached their targets or are still changing, and will return True as
         long as there is at least one servo that is limited by a speed or acceleration setting still moving. Using this
