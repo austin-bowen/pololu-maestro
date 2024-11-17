@@ -8,13 +8,14 @@ These functions provide access to many of the Maestro's capabilities using the P
 """
 
 import argparse
+import platform
 from abc import ABC, abstractmethod
 from typing import Mapping, MutableSequence, Optional, Union
 
 import serial
 from serial import Serial
 
-DEFAULT_TTY = '/dev/ttyACM0'
+DEFAULT_TTY = 'COM5' if platform.system() == 'Windows' else '/dev/ttyACM0'
 
 
 class SerialCommands:
@@ -74,7 +75,7 @@ class Maestro(ABC):
     This device number defaults to 0x0C (or 12 in decimal), which this module
     assumes.  If two or more controllers are connected to different serial
     ports, or you are using a Windows OS, you can provide the tty port.  For
-    example, '/dev/ttyACM2' or for Windows, something like 'COM3'.
+    example, '/dev/ttyACM2' or for Windows, something like 'COM5'.
 
     TODO: Automatic serial reconnect.
     """
