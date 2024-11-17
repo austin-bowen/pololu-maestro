@@ -1,20 +1,32 @@
 # pololu-maestro
 
-Python 3 driver for the Pololu Maestro series of servo controllers.
+Python driver for the [Pololu Maestro](https://www.pololu.com/category/102/maestro-usb-servo-controllers) series of servo controllers.
 
 Originally cloned from: [FRC4564/Maestro](https://github.com/FRC4564/Maestro/)
 
 
 # Usage
 
-TODO: Add Python examples.
+```python
+from maestro import MicroMaestro, MiniMaestro
+
+# Connect to a Mini Maestro and set the target of servo 0 to 1500 microseconds
+with MicroMaestro.connect() as maestro:
+    maestro.set_target(0, 1500)
+# Signals stop being sent to the servos and the connection is automatically
+# closed after leaving the block
+
+# Connect to a Mini Maestro 12 and get the position of servo 1
+with MiniMaestro.connect(channels=12) as maestro:
+    print('Servo 1 position:', maestro.get_position(1))
+```
 
 ## Interactive Mode
 
 The module can be run to interactively control the servo targets:
 
 ```bash
-python -m maestro
+python -m maestro {micro,mini12,mini18,mini24} [--tty TTY]
 ```
 
 
