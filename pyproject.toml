@@ -39,9 +39,8 @@ dependencies = ["pyserial"]
 # Optional dependencies the project provides. These are commonly
 # referred to as "extras". For a more extensive definition see:
 # https://packaging.python.org/en/latest/specifications/dependency-specifiers/#extras
-#[project.optional-dependencies]
-#dev = []
-#test = []
+[project.optional-dependencies]
+test = ["pytest"]
 
 [project.urls]
 "Homepage" = "https://github.com/austin-bowen/pololu-maestro"
