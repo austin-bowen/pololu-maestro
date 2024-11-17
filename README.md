@@ -21,6 +21,29 @@ with MiniMaestro.connect(channels=12) as maestro:
     print('Servo 1 position:', maestro.get_position(1))
 ```
 
+## Methods
+
+The `Maestro` classes have the following methods:
+
+- `set_target(channel: int, target_us: float)`: Set the target position of a servo.
+- `set_targets(targets: dict[int, float])`: Set the target positions of multiple servos at once.
+- `stop_channel(channel: int)`: Stop sending signals to a servo.
+- `is_moving(channel: int) -> bool`
+- `any_are_moving() -> bool`
+- `wait_until_done_moving(poll_period: float = 0.1)`
+- `get_position(channel: int) -> float`: Get the current position of a servo. May differ from the target if speed or acceleration is non-zero.
+- `set_limits(channel: int, min_us: float = None, max_us: float = None)`
+- `get_limits(channel: int) -> Tuple[float, float]`
+- `set_speed(channel: int, speed: float)`
+- `set_acceleration(channel: int, acceleration: float)`
+- `go_home()`: Set all servos to their home positions.
+- `run_script_subroutine(subroutine: int, parameter: int = None)`
+- `script_is_running() -> bool`
+- `stop_script()`
+- `get_errors() -> int`
+- `MiniMaestro` only:
+  - `set_pwm(on_time_us: float, period_us: float)`
+
 ## Interactive Mode
 
 The module can be run to interactively control the servo targets:
