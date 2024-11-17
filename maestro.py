@@ -1,11 +1,12 @@
 """
-Maestro Servo Controller
+Maestro Servo Controllers
 
 Support for the Pololu Maestro line of servo controllers:
 https://www.pololu.com/docs/0J40
 
 These functions provide access to many of the Maestro's capabilities using the Pololu serial protocol.
 """
+
 import argparse
 from abc import ABC, abstractmethod
 from typing import Mapping, MutableSequence, Optional, Union
@@ -14,7 +15,6 @@ import serial
 from serial import Serial
 
 DEFAULT_TTY = '/dev/ttyACM0'
-MAX_CHANNELS = 24
 
 
 class SerialCommands:
@@ -62,14 +62,6 @@ def _get_lsb_msb(value: int) -> tuple[int, int]:
     return lsb, msb
 
 
-def _validate_channel(method):
-    def wrapper(self, channel, *args, **kwargs):
-        self._validate_channel(channel)
-        return method(self, channel, *args, **kwargs)
-
-    return wrapper
-
-
 class Maestro(ABC):
     """
     When connected via USB, the Maestro creates two virtual serial ports
@@ -111,10 +103,10 @@ class Maestro(ABC):
         self.safe_close = safe_close
 
         # Track target position for each servo
-        self.targets_us: MutableSequence[float] = [0.] * MAX_CHANNELS
+        self.targets_us: MutableSequence[float] = [0.] * self.channels
 
         # Servo minimum and maximum targets can be restricted to protect components
-        self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * MAX_CHANNELS
+        self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * self.channels
 
         self._closed = False
 
@@ -126,6 +118,14 @@ class Maestro(ABC):
     def _validate_channel(self, channel: int) -> None:
         if not (0 <= channel < self.channels):
             raise ValueError(f"Invalid channel: {channel}. Must be between 0 and {self.channels - 1}.")
+
+    @staticmethod
+    def _validate_channel_arg(method):
+        def wrapper(self, channel, *args, **kwargs):
+            self._validate_channel(channel)
+            return method(self, channel, *args, **kwargs)
+
+        return wrapper
 
     def __del__(self) -> None:
         self.close()
@@ -155,7 +155,7 @@ class Maestro(ABC):
             return
 
         if self.safe_close:
-            for channel in range(MAX_CHANNELS):
+            for channel in range(self.channels):
                 self.stop_channel(channel)
 
         self._conn.close()
@@ -208,7 +208,7 @@ class Maestro(ABC):
         self._conn.write(self._pololu_cmd + cmd)
         self._conn.flush()
 
-    @_validate_channel
+    @_validate_channel_arg
     def set_limits(self, channel: int, min_us: float = None, max_us: float = None) -> None:
         """
         Set channels min and max value range.  Use this as a safety to protect from accidentally moving outside known
@@ -227,12 +227,12 @@ class Maestro(ABC):
 
         self.target_limits_us[channel] = (min_us, max_us)
 
-    @_validate_channel
+    @_validate_channel_arg
     def get_limits(self, channel: int) -> tuple[Optional[float], Optional[float]]:
         """Return tuple of (min_us, max_us) for the specified channel."""
         return self.target_limits_us[channel]
 
-    @_validate_channel
+    @_validate_channel_arg
     def stop_channel(self, channel: int) -> None:
         """
         Sets the target of the specified channel to 0, causing the Maestro to stop sending PWM signals on that channel.
@@ -247,7 +247,7 @@ class Maestro(ABC):
         """Causes the script to stop, if it is currently running."""
         self.send_cmd(bytes((SerialCommands.STOP_SCRIPT,)))
 
-    @_validate_channel
+    @_validate_channel_arg
     def set_target(self, channel: int, target_us: float) -> None:
         """
         Set channel to a specified target value.  Servo will begin moving based
@@ -281,7 +281,7 @@ class Maestro(ABC):
     def set_targets(self, targets: Mapping[int, float]) -> None:
         ...
 
-    @_validate_channel
+    @_validate_channel_arg
     def set_speed(self, channel: int, speed: int) -> None:
         """
         Set speed of channel
@@ -293,7 +293,7 @@ class Maestro(ABC):
         lsb, msb = _get_lsb_msb(speed)
         self.send_cmd(bytes((SerialCommands.SET_SPEED, channel, lsb, msb)))
 
-    @_validate_channel
+    @_validate_channel_arg
     def set_acceleration(self, channel: int, acceleration: int) -> None:
         """
         Set acceleration of channel
@@ -305,7 +305,7 @@ class Maestro(ABC):
         lsb, msb = _get_lsb_msb(acceleration)
         self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
 
-    @_validate_channel
+    @_validate_channel_arg
     def get_position(self, channel: int) -> float:
         """
         Get the current position of the device on the specified channel
@@ -324,7 +324,7 @@ class Maestro(ABC):
         data = self._read(2)
         return (data[0] << 8 | data[1]) / 4
 
-    @_validate_channel
+    @_validate_channel_arg
     def is_moving(self, channel: int) -> bool:
         """
         Test to see if a servo has reached the set target position.  This only provides
@@ -434,9 +434,8 @@ class MiniMaestro(Maestro):
         if channels not in (12, 18, 24):
             raise ValueError(f'channels must be 12, 18, or 24; got {channels}.')
 
-        super().__init__(conn, device, safe_close)
-
         self._channels = channels
+        super().__init__(conn, device, safe_close)
 
     @classmethod
     def connect(
