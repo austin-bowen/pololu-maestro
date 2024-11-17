@@ -6,6 +6,7 @@ https://www.pololu.com/docs/0J40
 
 These functions provide access to many of the Maestro's capabilities using the Pololu serial protocol.
 """
+import argparse
 from abc import ABC, abstractmethod
 from typing import Mapping, MutableSequence, Optional, Union
 
@@ -548,16 +549,28 @@ class MiniMaestro(Maestro):
 
 
 def main() -> None:
-    tty = input(f'Enter tty port [{DEFAULT_TTY}]: ') or DEFAULT_TTY
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+        'model',
+        choices=('micro', 'mini12', 'mini18', 'mini24'),
+        help='The Maestro model to connect to.',
+    )
+    arg_parser.add_argument(
+        '--tty',
+        default=DEFAULT_TTY,
+        help=f'The tty port to connect to. Default: {DEFAULT_TTY!r}',
+    )
+    args = arg_parser.parse_args()
 
-    model = input('Which model? 0: Micro; 1: Mini 12; 2: Mini 16; 3: Mini 24: ')
-    model = int(model)
+    model = args.model
+    tty = args.tty
 
-    print('Connecting to Maestro...')
-    if model == 0:
+    if model == 'micro':
+        print(f'Connecting to Micro Maestro on {tty!r}...')
         maestro = MicroMaestro.connect(tty=tty)
     else:
-        channels = [12, 18, 24][model - 1]
+        channels = int(model[-2:])
+        print(f'Connected to Mini Maestro {channels} on {tty!r}...')
         maestro = MiniMaestro.connect(channels, tty=tty)
     print('Connected!')
 
