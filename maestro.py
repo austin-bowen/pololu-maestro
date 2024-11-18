@@ -345,7 +345,7 @@ class Maestro(ABC):
 
         self.send_cmd(bytes((SerialCommands.GET_POSITION, channel)))
         data = self._read(2)
-        return (data[0] << 8 | data[1]) / 4
+        return (data[1] << 8 | data[0]) / 4
 
     @_validate_channel_arg
     def is_moving(self, channel: int) -> bool:
