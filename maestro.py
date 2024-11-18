@@ -58,7 +58,8 @@ class Errors:
 
 
 def _get_lsb_msb(value: int) -> tuple[int, int]:
-    assert 0 <= value <= 16383, f'value was {value}; must be in the range of [0, 2^14 - 1].'
+    if not (0 <= value <= 16383):
+        raise ValueError(f'value was {value}; must be in the range [0, 16383].')
     lsb = value & 0x7F  # 7 bits for least significant byte
     msb = (value >> 7) & 0x7F  # shift 7 and take next 7 bits for msb
     return lsb, msb
@@ -128,6 +129,10 @@ class Maestro(ABC):
             return method(self, channel, *args, **kwargs)
 
         return wrapper
+
+    def _validate_target_us(self, target_us: float) -> None:
+        if not (0. <= target_us <= 4095.75):
+            raise ValueError(f'target_us must be in the range [0, 4095.75]; got {target_us}.')
 
     def __del__(self) -> None:
         self.close()
@@ -261,6 +266,8 @@ class Maestro(ABC):
         If channel is configured for digital output, values < 6000 = Low output
         """
 
+        self._validate_target_us(target_us)
+
         min_target_us, max_target_us = self.get_limits(channel)
 
         # If min is defined and target is below, force to min
@@ -279,8 +286,22 @@ class Maestro(ABC):
         lsb, msb = _get_lsb_msb(target)
         self.send_cmd(bytes((SerialCommands.SET_TARGET, channel, lsb, msb)))
 
-    @abstractmethod
     def set_targets(self, targets: Mapping[int, float]) -> None:
+        """
+        Set multiple channel targets at once.
+
+        Args:
+            targets: A dict mapping channels to their targets (in microseconds).
+        """
+
+        for channel, target_us in targets.items():
+            self._validate_channel(channel)
+            self._validate_target_us(target_us)
+
+        self._set_targets(targets)
+
+    @abstractmethod
+    def _set_targets(self, targets: Mapping[int, float]) -> None:
         ...
 
     @_validate_channel_arg
@@ -413,22 +434,9 @@ class MicroMaestro(Maestro):
     def channels(self) -> int:
         return 6
 
-    def set_targets(self, targets: Mapping[int, float]) -> None:
-        """
-        Set multiple channel targets at once.
-
-        The Micro Maestro does not support the "set multiple targets" command, so this method will simply set each
-        channel target one at a time.
-
-        Args:
-            targets: A dict mapping channels to their targets (in microseconds).
-        """
-
-        for channel in targets.keys():
-            self._validate_channel(channel)
-
-        for channel, target in targets.items():
-            self.set_target(channel, target)
+    def _set_targets(self, targets: Mapping[int, float]) -> None:
+        for channel, target_us in targets.items():
+            self.set_target(channel, target_us)
 
     def any_are_moving(self) -> bool:
         return any(self.is_moving(c) for c in range(self.channels))
@@ -481,17 +489,7 @@ class MiniMaestro(Maestro):
     def channels(self) -> int:
         return self._channels
 
-    def set_targets(self, targets: Mapping[int, float]) -> None:
-        """
-        Set multiple channel targets at once.
-
-        Args:
-            targets: A dict mapping channels to their targets (in microseconds).
-        """
-
-        for channel in targets.keys():
-            self._validate_channel(channel)
-
+    def _set_targets(self, targets: Mapping[int, float]) -> None:
         # Use targets to build a structure of target blocks
         channels = sorted(targets.keys())
         prev_channel = first_channel = channels[0]
