@@ -24,8 +24,10 @@ class BaseMaestroTest:
 
     def setup_method(self) -> None:
         self.conn = Mock(serial.Serial)
+        self.maestro = self.build_maestro()
 
-        self.maestro = MaestroTestImpl(
+    def build_maestro(self) -> Maestro:
+        return MaestroTestImpl(
             self.conn,
             device=SerialCommands.DEFAULT_DEVICE_NUMBER,
             safe_close=False,

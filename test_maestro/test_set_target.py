@@ -7,7 +7,7 @@ class TestMaestroSetTarget(BaseMaestroTest):
     @pytest.mark.parametrize('channel, target_us, suffix', [
         (0, 1500, b'\x00\x70\x2E'),
         (1, 0, b'\x01\x00\x00'),
-        (2, 4095.75, b'\x02\x7f\x7f'),
+        (2, 4095.75, b'\x02\x7F\x7F'),
     ])
     def test_valid_channel_and_target(self, channel: int, target_us: int, suffix: bytes):
         self.maestro.set_target(channel, target_us)
