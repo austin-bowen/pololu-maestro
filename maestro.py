@@ -387,9 +387,12 @@ class Maestro(ABC):
         infinite loops or end with a QUIT command.
 
         Args:
-            subroutine: The subroutine number to run.
+            subroutine: The subroutine number to run. Range: 0 to 127.
             parameter: (Optional) The integer parameter to pass to the subroutine (range: 0 to 16383).
         """
+
+        if not (0 <= subroutine <= 127):
+            raise ValueError(f'subroutine must be in the range [0, 127]; got {subroutine}.')
 
         if parameter is None:
             self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
