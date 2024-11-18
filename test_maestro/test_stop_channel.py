@@ -13,7 +13,7 @@ class TestMaestroStopChannel(BaseMaestroTest):
         self.assert_wrote(b'\xAA\x0C\x04' + suffix)
 
     @pytest.mark.parametrize('channel', [-1, 3])
-    def test_set_target_invalid_channel(self, channel: int):
+    def test_invalid_channel_raises_ValueError(self, channel: int):
         with pytest.raises(ValueError):
             self.maestro.stop_channel(channel)
 
