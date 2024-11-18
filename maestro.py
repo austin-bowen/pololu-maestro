@@ -536,11 +536,26 @@ class MiniMaestro(Maestro):
             period_us: PWM period in microseconds.
         """
 
-        on_time = int(round(48 * on_time_us))  # The command uses 1/48th us intervals
-        on_time_lsb, on_time_msb = _get_lsb_msb(on_time)
-        period = int(round(48 * period_us))  # The command uses 1/48th us intervals
-        period_lsb, period_msb = _get_lsb_msb(period)
-        self.send_cmd(bytes((SerialCommands.SET_PWM, on_time_lsb, on_time_msb, period_lsb, period_msb)))
+        if on_time_us > period_us:
+            raise ValueError(
+                f'on_time_us must be less than or equal to period_us; '
+                f'got on_time_us={on_time_us} and period_us={period_us}.'
+            )
+        if period_us > 341.3125:
+            raise ValueError(
+                f'period_us must be less than or equal to 341.3125; '
+                f'got period_us={period_us}.'
+            )
+
+        # The command uses 1/48th us intervals
+        on_time = int(round(48 * on_time_us))
+        period = int(round(48 * period_us))
+
+        self.send_cmd(bytes((
+            SerialCommands.SET_PWM,
+            *_get_lsb_msb(on_time),
+            *_get_lsb_msb(period),
+        )))
 
     def any_are_moving(self) -> bool:
         """
