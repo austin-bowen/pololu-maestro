@@ -77,8 +77,16 @@ Then log out and back in. Do this step if you get "Permission denied" errors con
 
 # Local Development
 
+Setup:
+
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -e .
+pip install -e .[test]
+```
+
+Run tests:
+
+```bash
+pytest
 ```
