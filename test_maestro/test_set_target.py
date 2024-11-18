@@ -9,19 +9,19 @@ class TestMaestroSetTarget(BaseMaestroTest):
         (1, 0, b'\x01\x00\x00'),
         (2, 4095.75, b'\x02\x7f\x7f'),
     ])
-    def test_set_target_valid(self, channel: int, target_us: int, suffix: bytes):
+    def test_valid_channel_and_target(self, channel: int, target_us: int, suffix: bytes):
         self.maestro.set_target(channel, target_us)
         self.assert_wrote(b'\xAA\x0C\x04' + suffix)
 
     @pytest.mark.parametrize('channel', [-1, 3])
-    def test_set_target_invalid_channel(self, channel: int):
+    def test_invalid_channel_raises_ValueError(self, channel: int):
         with pytest.raises(ValueError):
             self.maestro.set_target(channel, 1500)
 
         self.assert_conn_not_used()
 
     @pytest.mark.parametrize('target_us', [-1, 4095.751])
-    def test_set_target_invalid_target(self, target_us: float):
+    def test_invalid_target_raises_ValueError(self, target_us: float):
         with pytest.raises(ValueError):
             self.maestro.set_target(0, target_us)
 
