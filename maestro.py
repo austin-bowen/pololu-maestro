@@ -11,6 +11,7 @@ import argparse
 import platform
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Mapping, Optional, Union
 
 import serial
@@ -295,13 +296,24 @@ class Maestro(ABC):
         """Return a list of target values for all channels."""
         return list(self._targets_us)
 
-    def set_targets(self, targets: Mapping[int, float]) -> None:
+    def set_targets(self, targets: Union[Sequence[float], Mapping[int, float]]) -> None:
         """
         Set multiple channel targets at once.
 
         Args:
-            targets: A dict mapping channels to their targets (in microseconds).
+            targets:
+                Either a list of length `channels`, or a dict mapping channels
+                to their targets (in microseconds).
         """
+
+        if not isinstance(targets, Mapping):
+            if len(targets) != self.channels:
+                raise ValueError(
+                    f'If targets is a sequence, it must have the same length as the number of channels; '
+                    f'got {len(targets)} targets for {self.channels} channels.'
+                )
+
+            targets = dict(enumerate(targets))
 
         for channel, target_us in targets.items():
             self._validate_channel(channel)
