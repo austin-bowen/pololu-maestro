@@ -286,6 +286,11 @@ class Maestro(ABC):
         lsb, msb = _get_lsb_msb(target)
         self.send_cmd(bytes((SerialCommands.SET_TARGET, channel, lsb, msb)))
 
+    @_validate_channel_arg
+    def get_target(self, channel: int) -> float:
+        """Return the target value for the specified channel."""
+        return self.targets_us[channel]
+
     def set_targets(self, targets: Mapping[int, float]) -> None:
         """
         Set multiple channel targets at once.
@@ -360,7 +365,7 @@ class Maestro(ABC):
         """
 
         target_us = self.targets_us[channel]
-        return target_us and abs(target_us - self.get_position(channel)) < 0.01
+        return target_us > 0 and abs(target_us - self.get_position(channel)) > 0.01
 
     @abstractmethod
     def any_are_moving(self) -> bool:
