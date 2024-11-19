@@ -27,11 +27,14 @@ The `Maestro` classes have the following methods:
 
 - `set_target(channel: int, target_us: float)`: Set the target position of a servo.
 - `set_targets(targets: dict[int, float])`: Set the target positions of multiple servos at once.
+- `get_target(channel: int) -> float`
+- `get_targets() -> list[float]`
+- `get_position(channel: int) -> float`: Get the current position of a servo. May differ from the target if speed or acceleration is non-zero.
+- `get_positions() -> list[float]`
 - `stop_channel(channel: int)`: Stop sending signals to a servo.
 - `is_moving(channel: int) -> bool`
 - `any_are_moving() -> bool`
 - `wait_until_done_moving(poll_period: float = 0.1)`
-- `get_position(channel: int) -> float`: Get the current position of a servo. May differ from the target if speed or acceleration is non-zero.
 - `set_limits(channel: int, min_us: float = None, max_us: float = None)`
 - `get_limits(channel: int) -> Tuple[float, float]`
 - `set_speed(channel: int, speed: float)`

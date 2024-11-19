@@ -11,7 +11,7 @@ import argparse
 import platform
 import time
 from abc import ABC, abstractmethod
-from typing import Mapping, MutableSequence, Optional, Union
+from typing import Mapping, Optional, Union
 
 import serial
 from serial import Serial
@@ -106,7 +106,7 @@ class Maestro(ABC):
         self.safe_close = safe_close
 
         # Track target position for each servo
-        self.targets_us: MutableSequence[float] = [0.] * self.channels
+        self._targets_us: list[float] = [0.] * self.channels
 
         # Servo minimum and maximum targets can be restricted to protect components
         self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * self.channels
@@ -279,7 +279,7 @@ class Maestro(ABC):
             target_us = max_target_us
 
         # Record target value
-        self.targets_us[channel] = target_us
+        self._targets_us[channel] = target_us
 
         # Send the target to the Maestro
         target = int(round(4 * target_us))
@@ -289,7 +289,11 @@ class Maestro(ABC):
     @_validate_channel_arg
     def get_target(self, channel: int) -> float:
         """Return the target value for the specified channel."""
-        return self.targets_us[channel]
+        return self._targets_us[channel]
+
+    def get_targets(self) -> list[float]:
+        """Return a list of target values for all channels."""
+        return list(self._targets_us)
 
     def set_targets(self, targets: Mapping[int, float]) -> None:
         """
@@ -352,6 +356,9 @@ class Maestro(ABC):
         data = self._read(2)
         return (data[1] << 8 | data[0]) / 4
 
+    def get_positions(self) -> list[float]:
+        return list(self.get_position(c) for c in range(self.channels))
+
     @_validate_channel_arg
     def is_moving(self, channel: int) -> bool:
         """
@@ -364,7 +371,7 @@ class Maestro(ABC):
         moving to the target.
         """
 
-        target_us = self.targets_us[channel]
+        target_us = self._targets_us[channel]
         return target_us > 0 and abs(target_us - self.get_position(channel)) > 0.01
 
     @abstractmethod
