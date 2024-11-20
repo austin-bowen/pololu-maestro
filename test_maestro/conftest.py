@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import serial
 
-from maestro import Maestro, SerialCommands
+from maestro import Maestro, MicroMaestro, MiniMaestro, SerialCommands
 
 
 class MaestroTestImpl(Maestro):
@@ -47,3 +47,22 @@ class BaseMaestroTest:
         self.conn.write.assert_not_called()
         self.conn.flush.assert_not_called()
         self.conn.read.assert_not_called()
+
+
+class BaseMicroMaestroTest(BaseMaestroTest):
+    def build_maestro(self) -> Maestro:
+        return MicroMaestro(
+            self.conn,
+            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
+            safe_close=False,
+        )
+
+
+class BaseMiniMaestroTest(BaseMaestroTest):
+    def build_maestro(self) -> Maestro:
+        return MiniMaestro(
+            12,
+            self.conn,
+            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
+            safe_close=False,
+        )

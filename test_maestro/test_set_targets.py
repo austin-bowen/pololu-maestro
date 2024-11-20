@@ -2,18 +2,10 @@ from unittest.mock import call
 
 import pytest
 
-from maestro import Maestro, MicroMaestro, MiniMaestro, SerialCommands
-from test_maestro.conftest import BaseMaestroTest
+from test_maestro.conftest import BaseMicroMaestroTest, BaseMiniMaestroTest
 
 
-class TestMicroMaestroSetTargets(BaseMaestroTest):
-    def build_maestro(self) -> Maestro:
-        return MicroMaestro(
-            self.conn,
-            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
-            safe_close=False,
-        )
-
+class TestMicroMaestroSetTargets(BaseMicroMaestroTest):
     def test_valid_channel_and_target(self):
         targets = {
             0: 1500,
@@ -50,15 +42,7 @@ class TestMicroMaestroSetTargets(BaseMaestroTest):
         self.assert_conn_not_used()
 
 
-class TestMiniMaestroSetTargets(BaseMaestroTest):
-    def build_maestro(self) -> Maestro:
-        return MiniMaestro(
-            12,
-            self.conn,
-            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
-            safe_close=False,
-        )
-
+class TestMiniMaestroSetTargets(BaseMiniMaestroTest):
     def test_valid_channel_and_target(self):
         targets = {
             # These should be sorted and grouped

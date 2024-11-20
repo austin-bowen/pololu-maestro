@@ -1,18 +1,9 @@
 import pytest
 
-from maestro import Maestro, MiniMaestro, SerialCommands
-from test_maestro.conftest import BaseMaestroTest
+from test_maestro.conftest import BaseMiniMaestroTest
 
 
-class TestMiniMaestroSetPwm(BaseMaestroTest):
-    def build_maestro(self) -> Maestro:
-        return MiniMaestro(
-            12,
-            self.conn,
-            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
-            safe_close=False,
-        )
-
+class TestMiniMaestroSetPwm(BaseMiniMaestroTest):
     @pytest.mark.parametrize('on_time_us, period_us, suffix', [
         (0, 341.3125, b'\x00\x00\x7F\x7F'),
         (341.3125, 341.3125, b'\x7F\x7F\x7F\x7F'),
