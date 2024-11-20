@@ -319,6 +319,9 @@ class Maestro(ABC):
             self._validate_channel(channel)
             self._validate_target_us(target_us)
 
+        for channel, target_us in targets.items():
+            self._targets_us[channel] = target_us
+
         self._set_targets(targets)
 
     @abstractmethod
