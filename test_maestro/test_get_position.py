@@ -4,7 +4,7 @@ from pytest import approx
 from test_maestro.conftest import BaseMaestroTest
 
 
-class TestMaestroSetTarget(BaseMaestroTest):
+class TestMaestroGetPosition(BaseMaestroTest):
     @pytest.mark.parametrize('channel, suffix, read_bytes, position', [
         (0, b'\x00', b'\x07\x0A', 2567 / 4),
         (1, b'\x01', b'\x00\x00', 0),
@@ -19,6 +19,15 @@ class TestMaestroSetTarget(BaseMaestroTest):
 
         self.assert_wrote(b'\xAA\x0C\x10' + suffix)
         self.assert_read()
+
+    def test_get_positions(self):
+        self.conn.read.side_effect = [
+            b'\x07\x0A',
+            b'\x00\x00',
+            b'\xFF\x3F',
+        ]
+
+        assert self.maestro.get_positions() == [2567 / 4, 0, 4095.75]
 
     @pytest.mark.parametrize('channel', [-1, 3])
     def test_invalid_channel_raises_ValueError(self, channel: int):
