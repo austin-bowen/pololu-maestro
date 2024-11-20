@@ -33,6 +33,12 @@ class BaseMaestroTest:
             safe_close=False,
         )
 
+    def set_conn_read_bytes(self, data: bytes) -> None:
+        self.conn.read.side_effect = lambda n: {len(data): data}[n]
+
+    def assert_read(self) -> None:
+        self.conn.read.assert_called_once()
+
     def assert_wrote(self, data: bytes) -> None:
         self.conn.write.assert_called_once_with(data)
         self.conn.flush.assert_called_once()

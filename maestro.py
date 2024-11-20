@@ -135,6 +135,10 @@ class Maestro(ABC):
         if not (0. <= target_us <= 4095.75):
             raise ValueError(f'target_us must be in the range [0, 4095.75]; got {target_us}.')
 
+    def __str__(self) -> str:
+        targets = dict(enumerate(self.get_targets()))
+        return f'{self.__class__.__name__}(targets={targets})'
+
     def __del__(self) -> None:
         self.close()
 
@@ -143,6 +147,36 @@ class Maestro(ABC):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    def __getitem__(self, channel: Union[int, slice]) -> Union[float, list[float]]:
+        if isinstance(channel, slice):
+            return [self.get_target(c) for c in range(*channel.indices(self.channels))]
+        else:
+            return self.get_target(channel)
+
+    def __setitem__(
+            self,
+            channel: Union[int, slice],
+            target_us: Union[float, Sequence[float]],
+    ) -> None:
+        if not isinstance(channel, slice):
+            self.set_target(channel, target_us)
+            return
+
+        channels = range(*channel.indices(self.channels))
+
+        if isinstance(target_us, Sequence):
+            if len(target_us) != len(channels):
+                raise ValueError(
+                    f'If target_us is a sequence, it must have the same length as the number of channels; '
+                    f'got {len(target_us)} targets for {len(channels)} channels.'
+                )
+
+            targets = {c: t for c, t in zip(channels, target_us)}
+        else:
+            targets = {c: target_us for c in channels}
+
+        self.set_targets(targets)
 
     def _read(self, byte_count: int) -> bytes:
         """
