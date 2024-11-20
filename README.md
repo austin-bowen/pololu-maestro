@@ -10,15 +10,37 @@ Originally cloned from: [FRC4564/Maestro](https://github.com/FRC4564/Maestro/)
 ```python
 from maestro import MicroMaestro, MiniMaestro
 
-# Connect to a Mini Maestro and set the target of servo 0 to 1500 microseconds
+# Connect to a Mini Maestro
 with MicroMaestro.connect() as maestro:
+    # Set targets of servos 0-3 to 1500, 1600, 1700, and 1800 us
     maestro.set_target(0, 1500)
-# Signals stop being sent to the servos and the connection is automatically
-# closed after leaving the block
+    maestro[1] = 1600
+    maestro[2:4] = [1700, 1800]
 
-# Connect to a Mini Maestro 12 and get the position of servo 1
+    # Get targets
+    assert maestro.get_target(0) == 1500
+    assert maestro[1] == 1600
+    assert maestro[0:4] == [1500, 1600, 1700, 1800]
+
+# After leaving the block, the Maestro is told to stop sending signals
+# to the servos, and the connection is automatically closed
+
+# Connect to a Mini Maestro 12
 with MiniMaestro.connect(channels=12) as maestro:
-    print('Servo 1 position:', maestro.get_position(1))
+    # Servo position may not equal the target
+    # if speed or acceleration are set, e.g.:
+    # Move servo 10 from 1000 to 2000 us at low speed
+    maestro.set_target(10, 1000)
+    maestro.set_speed(10, 1)
+    maestro.set_target(10, 2000)
+
+    assert maestro.is_moving(10)
+    assert maestro.get_position(10) != maestro.get_target(10)
+    
+    maestro.wait_until_done_moving()
+    
+    assert not maestro.is_moving(10)
+    assert maestro.get_position(10) == maestro.get_target(10)
 ```
 
 ## Methods
