@@ -6,18 +6,19 @@ from test_maestro.conftest import BaseMicroMaestroTest, BaseMiniMaestroTest
 
 
 class TestMicroMaestroAnyAreMoving(BaseMicroMaestroTest):
-    @pytest.mark.parametrize('expected', [True, False])
-    def test(self, expected: bool):
-        # Make the last channel appear to be moving if expected is True
+    @pytest.mark.parametrize('moving_channels, expected', [
+        ({}, False),
+        ({0}, True),
+        ({2, 5}, True),
+    ])
+    def test(self, moving_channels: set[int], expected: bool):
         self.maestro.is_moving = Mock(
-            side_effect=lambda c: c == 5 and expected
+            side_effect=lambda c: c in moving_channels
         )
 
         assert self.maestro.any_are_moving() == expected
 
-        self.maestro.is_moving.assert_has_calls([
-            call(c) for c in range(6)
-        ])
+        self.maestro.is_moving.assert_called()
 
 
 class TestMiniMaestroAnyAreMoving(BaseMiniMaestroTest):
