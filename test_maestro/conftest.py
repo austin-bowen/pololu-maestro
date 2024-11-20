@@ -45,3 +45,5 @@ class BaseMaestroTest:
 
     def assert_conn_not_used(self) -> None:
         self.conn.write.assert_not_called()
+        self.conn.flush.assert_not_called()
+        self.conn.read.assert_not_called()
