@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+pytest --cov=maestro --cov-report=term-missing
+rm .coverage

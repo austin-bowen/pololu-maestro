@@ -40,7 +40,7 @@ dependencies = ["pyserial"]
 # referred to as "extras". For a more extensive definition see:
 # https://packaging.python.org/en/latest/specifications/dependency-specifiers/#extras
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "pytest-cov"]
 
 [project.urls]
 "Homepage" = "https://github.com/austin-bowen/pololu-maestro"

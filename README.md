@@ -123,8 +123,8 @@ source venv/bin/activate
 pip install -e .[test]
 ```
 
-Run tests:
+Run unit tests and view coverage:
 
 ```bash
-pytest
+./test
 ```
