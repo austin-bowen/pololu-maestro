@@ -218,7 +218,7 @@ class Maestro(ABC):
         For servos and outputs set to "Ignore", the position will be unchanged.
         """
 
-        self.send_cmd(bytes((SerialCommands.GO_HOME,)))
+        self.send_cmd(SerialCommands.GO_HOME)
 
     def script_is_running(self) -> bool:
         """
@@ -228,13 +228,16 @@ class Maestro(ABC):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(bytes((SerialCommands.GET_SCRIPT_STATUS,)))
+        self.send_cmd(SerialCommands.GET_SCRIPT_STATUS)
 
         is_running = 0
         return self._read(1)[0] == is_running
 
-    def send_cmd(self, cmd: Union[bytes, bytearray]) -> None:
+    def send_cmd(self, *args: int) -> None:
         """Send a Pololu command out the serial port."""
+        self.send_cmd_bytes(bytes(args))
+
+    def send_cmd_bytes(self, cmd: Union[bytes, bytearray]) -> None:
         self._conn.write(self._pololu_cmd + cmd)
         self._conn.flush()
 
@@ -275,7 +278,7 @@ class Maestro(ABC):
 
     def stop_script(self) -> None:
         """Causes the script to stop, if it is currently running."""
-        self.send_cmd(bytes((SerialCommands.STOP_SCRIPT,)))
+        self.send_cmd(SerialCommands.STOP_SCRIPT)
 
     @_validate_channel_arg
     def set_target(self, channel: int, target_us: float) -> None:
@@ -301,7 +304,7 @@ class Maestro(ABC):
 
         target = int(round(4 * target_us))
         lsb, msb = _get_lsb_msb(target)
-        self.send_cmd(bytes((SerialCommands.SET_TARGET, channel, lsb, msb)))
+        self.send_cmd(SerialCommands.SET_TARGET, channel, lsb, msb)
 
         self._targets[channel] = target_us
 
@@ -356,7 +359,7 @@ class Maestro(ABC):
         """
 
         lsb, msb = _get_lsb_msb(speed)
-        self.send_cmd(bytes((SerialCommands.SET_SPEED, channel, lsb, msb)))
+        self.send_cmd(SerialCommands.SET_SPEED, channel, lsb, msb)
         self._speeds[channel] = speed
 
     @_validate_channel_arg
@@ -380,7 +383,7 @@ class Maestro(ABC):
         """
 
         lsb, msb = _get_lsb_msb(acceleration)
-        self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
+        self.send_cmd(SerialCommands.SET_ACCELERATION, channel, lsb, msb)
         self._accels[channel] = acceleration
 
     def get_accelerations(self) -> list[Optional[int]]:
@@ -409,7 +412,7 @@ class Maestro(ABC):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(bytes((SerialCommands.GET_POSITION, channel)))
+        self.send_cmd(SerialCommands.GET_POSITION, channel)
         data = self._read(2)
         return (data[1] << 8 | data[0]) / 4
 
@@ -468,15 +471,15 @@ class Maestro(ABC):
             raise ValueError(f'subroutine must be in the range [0, 127]; got {subroutine}.')
 
         if parameter is None:
-            self.send_cmd(bytes((SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)))
+            self.send_cmd(SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE, subroutine)
         else:
             parameter_lsb, parameter_msb = _get_lsb_msb(parameter)
-            self.send_cmd(bytes((
+            self.send_cmd(
                 SerialCommands.RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER,
                 subroutine,
                 parameter_lsb,
                 parameter_msb,
-            )))
+            )
 
     def get_errors(self) -> set[MaestroError]:
         """
@@ -487,7 +490,7 @@ class Maestro(ABC):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(bytes((SerialCommands.GET_ERRORS,)))
+        self.send_cmd(SerialCommands.GET_ERRORS)
         data = self._read(2)
         error_code = data[1] << 8 | data[0]
 
@@ -612,7 +615,7 @@ class MiniMaestro(Maestro):
                 for target in target_block:
                     target = int(float(4 * target))
                     cmd += bytes(_get_lsb_msb(target))
-                self.send_cmd(cmd)
+                self.send_cmd_bytes(cmd)
 
     def set_pwm(self, on_time_us: float, period_us: float) -> None:
         """
@@ -639,11 +642,11 @@ class MiniMaestro(Maestro):
         on_time = int(round(48 * on_time_us))
         period = int(round(48 * period_us))
 
-        self.send_cmd(bytes((
+        self.send_cmd(
             SerialCommands.SET_PWM,
             *_get_lsb_msb(on_time),
             *_get_lsb_msb(period),
-        )))
+        )
 
     def any_are_moving(self) -> bool:
         """
@@ -658,7 +661,7 @@ class MiniMaestro(Maestro):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(bytes((SerialCommands.GET_MOVING_STATE,)))
+        self.send_cmd(SerialCommands.GET_MOVING_STATE)
         return self._read(1)[0] == 1
 
 
