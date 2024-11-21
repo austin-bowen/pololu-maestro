@@ -113,7 +113,7 @@ class Maestro(ABC):
         self.safe_close = safe_close
 
         # Track target position, speed, and acceleration for each servo
-        self._targets_us: list[float] = [0.] * self.channels
+        self._targets: list[Optional[float]] = [None] * self.channels
         self._speeds: list[Optional[int]] = [None] * self.channels
         self._accels: list[Optional[int]] = [None] * self.channels
 
@@ -293,30 +293,26 @@ class Maestro(ABC):
 
         min_target_us, max_target_us = self.get_limits(channel)
 
-        # If min is defined and target is below, force to min
         if min_target_us is not None and target_us < min_target_us:
             target_us = min_target_us
 
-        # If max is defined and target is above, force to max
         if max_target_us is not None and target_us > max_target_us:
             target_us = max_target_us
 
-        # Record target value
-        self._targets_us[channel] = target_us
-
-        # Send the target to the Maestro
         target = int(round(4 * target_us))
         lsb, msb = _get_lsb_msb(target)
         self.send_cmd(bytes((SerialCommands.SET_TARGET, channel, lsb, msb)))
 
+        self._targets[channel] = target_us
+
     @_validate_channel_arg
     def get_target(self, channel: int) -> float:
         """Return the target value for the specified channel."""
-        return self._targets_us[channel]
+        return self._targets[channel]
 
     def get_targets(self) -> list[float]:
         """Return a list of target values for all channels."""
-        return list(self._targets_us)
+        return list(self._targets)
 
     def set_targets(self, targets: Union[Sequence[float], Mapping[int, float]]) -> None:
         """
@@ -341,10 +337,10 @@ class Maestro(ABC):
             self._validate_channel(channel)
             self._validate_target_us(target_us)
 
-        for channel, target_us in targets.items():
-            self._targets_us[channel] = target_us
-
         self._set_targets(targets)
+
+        for channel, target_us in targets.items():
+            self._targets[channel] = target_us
 
     @abstractmethod
     def _set_targets(self, targets: Mapping[int, float]) -> None:
@@ -432,8 +428,12 @@ class Maestro(ABC):
         moving to the target.
         """
 
-        target_us = self._targets_us[channel]
-        return target_us > 0 and abs(target_us - self.get_position(channel)) > 0.01
+        target = self._targets[channel]
+        return (
+                target is not None
+                and target > 0
+                and abs(target - self.get_position(channel)) > 0.01
+        )
 
     @abstractmethod
     def any_are_moving(self) -> bool:

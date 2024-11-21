@@ -13,13 +13,15 @@ class TestMaestroGetTarget(BaseMaestroTest):
     def test_get_target(self):
         assert self.maestro.get_target(0) == 1500
         assert self.maestro.get_target(1) == 1600
+        assert self.maestro.get_target(2) is None
 
     def test_get_targets(self):
-        assert self.maestro.get_targets() == [1500, 1600, 0]
+        assert self.maestro.get_targets() == [1500, 1600, None]
 
     def test_getitem_with_int(self):
         assert self.maestro[0] == 1500
         assert self.maestro[1] == 1600
+        assert self.maestro[2] is None
 
     def test_getitem_with_slice(self):
         assert self.maestro[0:2] == [1500, 1600]
