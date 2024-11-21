@@ -385,6 +385,9 @@ class Maestro(ABC):
         """
         return self._speeds[channel]
 
+    def get_speeds(self) -> list[Optional[int]]:
+        return list(self._speeds)
+
     @_validate_channel_arg
     def set_acceleration(self, channel: int, acceleration: int) -> None:
         """
@@ -397,6 +400,9 @@ class Maestro(ABC):
         lsb, msb = _get_lsb_msb(acceleration)
         self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
         self._accels[channel] = acceleration
+
+    def get_accelerations(self) -> list[Optional[int]]:
+        return list(self._accels)
 
     @_validate_channel_arg
     def get_acceleration(self, channel: int) -> Optional[int]:
