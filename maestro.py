@@ -147,9 +147,6 @@ class Maestro(ABC):
         targets = dict(enumerate(self.get_targets()))
         return f'{self.__class__.__name__}(targets={targets})'
 
-    def __del__(self) -> None:
-        self.close()
-
     def __enter__(self) -> 'Maestro':
         return self
 

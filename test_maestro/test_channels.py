@@ -14,3 +14,7 @@ class TestMaestroChannels(BaseMaestroTest):
     def test_mini_maestro_channels(self, channels: int):
         maestro = MiniMaestro(channels, self.conn, device=SerialCommands.DEFAULT_DEVICE_NUMBER, safe_close=False)
         assert maestro.channels == channels
+
+    def test_mini_maestro_constructor_raises_ValueError_with_invalid_channels(self):
+        with pytest.raises(ValueError):
+            MiniMaestro(13, self.conn, device=SerialCommands.DEFAULT_DEVICE_NUMBER, safe_close=False)
