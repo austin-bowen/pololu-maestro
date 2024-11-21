@@ -57,6 +57,7 @@ The `MicroMaestro` and `MiniMaestro` classes have the following methods:
 - `set_limits(channel: int, min_us: float = None, max_us: float = None)`
 - `get_limits(channel: int) -> tuple[Optional[float], Optional[float]]`
 - `stop_channel(channel: int)`: Stop sending signals to a servo.
+- `stop()`: Stop all channels.
 - `go_home()`: Set all servos to their home positions.
 - `is_moving(channel: int) -> bool`
 - `any_are_moving() -> bool`

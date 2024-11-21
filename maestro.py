@@ -150,8 +150,7 @@ class Maestro(ABC):
             return
 
         if self.safe_close:
-            for channel in range(self.channels):
-                self.stop_channel(channel)
+            self.stop()
 
         self._conn.close()
 
@@ -282,6 +281,10 @@ class Maestro(ABC):
         """
 
         self.set_target(channel, 0)
+
+    def stop(self) -> None:
+        """Stops all servos."""
+        self.set_targets([0] * self.channels)
 
     def go_home(self) -> None:
         """
