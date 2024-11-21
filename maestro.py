@@ -12,6 +12,7 @@ import platform
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from enum import Enum
 from typing import Mapping, Optional, Union
 
 import serial
@@ -42,11 +43,12 @@ class SerialCommands:
     SET_MULTIPLE_TARGETS = 0x1F
 
 
-class Errors:
+class MaestroError(Enum):
     """
     See the documentation for descriptions of these errors:
     https://www.pololu.com/docs/0J40/4.e
     """
+
     SERIAL_SIGNAL_ERROR = 1 << 0
     SERIAL_OVERRUN_ERROR = 1 << 1
     SERIAL_BUFFER_FULL_ERROR = 1 << 2
@@ -56,6 +58,10 @@ class Errors:
     SCRIPT_STACK_ERROR = 1 << 6
     SCRIPT_CALL_STACK_ERROR = 1 << 7
     SCRIPT_PROGRAM_COUNTER_ERROR = 1 << 8
+
+    @classmethod
+    def from_error_code(cls, error_code: int) -> set['MaestroError']:
+        return {error for error in cls if error.value & error_code}
 
 
 def _get_lsb_msb(value: int) -> tuple[int, int]:
@@ -205,26 +211,6 @@ class Maestro(ABC):
         self._conn.close()
 
         self._closed = True
-
-    def get_errors(self) -> int:
-        """
-        Use this command to examine the errors that the Maestro has detected. Section 4.e lists the specific errors that
-        can be detected by the Maestro. The error register is sent as a two-byte response immediately after the command
-        is received, then all the error bits are cleared. For most applications using serial control, it is a good idea
-        to check errors continuously and take appropriate action if errors occur.
-
-        See the Errors class for error values that can be and-ed with the result of this method to determine exactly
-        which errors have occurred.
-
-        Returns 0 if no errors have occurred since the last check; non-zero if an error has occurred.
-
-        Raises:
-            TimeoutError: Connection timed out.
-        """
-
-        self.send_cmd(bytes((SerialCommands.GET_ERRORS,)))
-        data = self._read(2)
-        return data[0] << 8 | data[1]
 
     def go_home(self) -> None:
         """
@@ -491,6 +477,21 @@ class Maestro(ABC):
                 parameter_lsb,
                 parameter_msb,
             )))
+
+    def get_errors(self) -> set[MaestroError]:
+        """
+        Returns a set of the errors that have occurred on the Maestro.
+        This also clears the error codes.
+
+        Raises:
+            TimeoutError: Connection timed out.
+        """
+
+        self.send_cmd(bytes((SerialCommands.GET_ERRORS,)))
+        data = self._read(2)
+        error_code = data[1] << 8 | data[0]
+
+        return MaestroError.from_error_code(error_code)
 
 
 class MicroMaestro(Maestro):
