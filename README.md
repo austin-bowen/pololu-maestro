@@ -5,7 +5,7 @@ Python driver for the [Pololu Maestro](https://www.pololu.com/category/102/maest
 Originally cloned from: [FRC4564/Maestro](https://github.com/FRC4564/Maestro/)
 
 
-# Usage
+# Example Usage
 
 ```python
 from maestro import MicroMaestro, MiniMaestro
@@ -47,24 +47,37 @@ with MiniMaestro.connect(channels=12) as maestro:
 
 The `Maestro` classes have the following methods:
 
+### Positioning
 - `set_target(channel: int, target_us: float)`: Set the target position of a servo.
-- `set_targets(targets: dict[int, float])`: Set the target positions of multiple servos at once.
 - `get_target(channel: int) -> float`
+- `set_targets(targets: dict[int, float])`: Set the target positions of multiple servos at once.
 - `get_targets() -> list[float]`
 - `get_position(channel: int) -> float`: Get the current position of a servo. May differ from the target if speed or acceleration is non-zero.
 - `get_positions() -> list[float]`
+- `set_limits(channel: int, min_us: float = None, max_us: float = None)`
+- `get_limits(channel: int) -> tuple[Optional[float], Optional[float]]`
 - `stop_channel(channel: int)`: Stop sending signals to a servo.
+- `go_home()`: Set all servos to their home positions.
 - `is_moving(channel: int) -> bool`
 - `any_are_moving() -> bool`
 - `wait_until_done_moving(poll_period: float = 0.1)`
-- `set_limits(channel: int, min_us: float = None, max_us: float = None)`
-- `get_limits(channel: int) -> Tuple[float, float]`
-- `set_speed(channel: int, speed: float)`
-- `set_acceleration(channel: int, acceleration: float)`
-- `go_home()`: Set all servos to their home positions.
+
+### Speed
+- `set_speed(channel: int, speed: int)`
+- `get_speed(channel: int) -> int`
+- `get_speeds() -> list[int]`
+
+### Acceleration
+- `set_acceleration(channel: int, acceleration: int)`
+- `get_acceleration(channel: int) -> int`
+- `get_accelerations() -> list[int]`
+
+### Scripting
 - `run_script_subroutine(subroutine: int, parameter: int = None)`
 - `script_is_running() -> bool`
 - `stop_script()`
+
+### Other
 - `get_errors() -> int`
 - `MiniMaestro` only:
   - `set_pwm(on_time_us: float, period_us: float)`
