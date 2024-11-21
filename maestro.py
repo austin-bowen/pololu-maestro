@@ -157,34 +157,96 @@ class Maestro(ABC):
 
         self._closed = True
 
-    def go_home(self) -> None:
+    @_validate_channel_arg
+    def set_target(self, channel: int, target_us: float) -> None:
         """
-        Sends all servos and outputs to their home positions, just as if an error had occurred.
-        For servos and outputs set to "Ignore", the position will be unchanged.
+        Set channel to a specified target value.  Servo will begin moving based
+        on Speed and Acceleration parameters previously set.
+        Target values will be constrained within Min and Max range, if set.
+        For servos, target represents the pulse width in of quarter-microseconds
+        Servo center is at 1500 microseconds, or 6000 quarter-microseconds
+        Typically valid servo range is 3000 to 9000 quarter-microseconds
+        If channel is configured for digital output, values < 6000 = Low output
         """
 
-        self.send_cmd(SerialCommands.GO_HOME)
+        self._validate_target_us(target_us)
 
-    def script_is_running(self) -> bool:
+        min_target_us, max_target_us = self.get_limits(channel)
+
+        if min_target_us is not None and target_us < min_target_us:
+            target_us = min_target_us
+
+        if max_target_us is not None and target_us > max_target_us:
+            target_us = max_target_us
+
+        target = int(round(4 * target_us))
+        lsb, msb = _get_lsb_msb(target)
+        self.send_cmd(SerialCommands.SET_TARGET, channel, lsb, msb)
+
+        self._targets[channel] = target_us
+
+    @_validate_channel_arg
+    def get_target(self, channel: int) -> float:
+        """Return the target value for the specified channel."""
+        return self._targets[channel]
+
+    def set_targets(self, targets: Union[Sequence[float], Mapping[int, float]]) -> None:
         """
-        Returns True if a script is running; False otherwise.
+        Set multiple channel targets at once.
+
+        Args:
+            targets:
+                Either a list of length `channels`, or a dict mapping channels
+                to their targets (in microseconds).
+        """
+
+        if not isinstance(targets, Mapping):
+            if len(targets) != self.channels:
+                raise ValueError(
+                    f'If targets is a sequence, it must have the same length as the number of channels; '
+                    f'got {len(targets)} targets for {self.channels} channels.'
+                )
+
+            targets = dict(enumerate(targets))
+
+        for channel, target_us in targets.items():
+            self._validate_channel(channel)
+            self._validate_target_us(target_us)
+
+        self._set_targets(targets)
+
+        for channel, target_us in targets.items():
+            self._targets[channel] = target_us
+
+    @abstractmethod
+    def _set_targets(self, targets: Mapping[int, float]) -> None:
+        ...
+
+    def get_targets(self) -> list[float]:
+        """Return a list of target values for all channels."""
+        return list(self._targets)
+
+    @_validate_channel_arg
+    def get_position(self, channel: int) -> float:
+        """
+        Get the current position of the device on the specified channel
+        The result is returned in a measure of quarter-microseconds, which mirrors
+        the Target parameter of setTarget.
+        This is not reading the true servo position, but the last target position sent
+        to the servo. If the Speed is set to below the top speed of the servo, then
+        the position result will align well with the actual servo position, assuming
+        it is not stalled or slowed.
 
         Raises:
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(SerialCommands.GET_SCRIPT_STATUS)
+        self.send_cmd(SerialCommands.GET_POSITION, channel)
+        data = self._read(2)
+        return (data[1] << 8 | data[0]) / 4
 
-        is_running = 0
-        return self._read(1)[0] == is_running
-
-    def send_cmd(self, *args: int) -> None:
-        """Send a Pololu command out the serial port."""
-        self.send_cmd_bytes(bytes(args))
-
-    def send_cmd_bytes(self, cmd: Union[bytes, bytearray]) -> None:
-        self._conn.write(self._pololu_cmd + cmd)
-        self._conn.flush()
+    def get_positions(self) -> list[float]:
+        return list(self.get_position(c) for c in range(self.channels))
 
     @_validate_channel_arg
     def set_limits(self, channel: int, min_us: float = None, max_us: float = None) -> None:
@@ -221,78 +283,47 @@ class Maestro(ABC):
 
         self.set_target(channel, 0)
 
-    def stop_script(self) -> None:
-        """Causes the script to stop, if it is currently running."""
-        self.send_cmd(SerialCommands.STOP_SCRIPT)
+    def go_home(self) -> None:
+        """
+        Sends all servos and outputs to their home positions, just as if an error had occurred.
+        For servos and outputs set to "Ignore", the position will be unchanged.
+        """
+
+        self.send_cmd(SerialCommands.GO_HOME)
 
     @_validate_channel_arg
-    def set_target(self, channel: int, target_us: float) -> None:
+    def is_moving(self, channel: int) -> bool:
         """
-        Set channel to a specified target value.  Servo will begin moving based
-        on Speed and Acceleration parameters previously set.
-        Target values will be constrained within Min and Max range, if set.
-        For servos, target represents the pulse width in of quarter-microseconds
-        Servo center is at 1500 microseconds, or 6000 quarter-microseconds
-        Typically valid servo range is 3000 to 9000 quarter-microseconds
-        If channel is configured for digital output, values < 6000 = Low output
-        """
+        Test to see if a servo has reached the set target position.  This only provides
+        useful results if the Speed parameter is set slower than the maximum speed of
+        the servo.  Servo range must be defined first using setRange. See setRange comment.
 
-        self._validate_target_us(target_us)
-
-        min_target_us, max_target_us = self.get_limits(channel)
-
-        if min_target_us is not None and target_us < min_target_us:
-            target_us = min_target_us
-
-        if max_target_us is not None and target_us > max_target_us:
-            target_us = max_target_us
-
-        target = int(round(4 * target_us))
-        lsb, msb = _get_lsb_msb(target)
-        self.send_cmd(SerialCommands.SET_TARGET, channel, lsb, msb)
-
-        self._targets[channel] = target_us
-
-    @_validate_channel_arg
-    def get_target(self, channel: int) -> float:
-        """Return the target value for the specified channel."""
-        return self._targets[channel]
-
-    def get_targets(self) -> list[float]:
-        """Return a list of target values for all channels."""
-        return list(self._targets)
-
-    def set_targets(self, targets: Union[Sequence[float], Mapping[int, float]]) -> None:
-        """
-        Set multiple channel targets at once.
-
-        Args:
-            targets:
-                Either a list of length `channels`, or a dict mapping channels
-                to their targets (in microseconds).
+        ***Note if target position goes outside of Maestro's allowable range for the
+        channel, then the target can never be reached, so it will appear to always be
+        moving to the target.
         """
 
-        if not isinstance(targets, Mapping):
-            if len(targets) != self.channels:
-                raise ValueError(
-                    f'If targets is a sequence, it must have the same length as the number of channels; '
-                    f'got {len(targets)} targets for {self.channels} channels.'
-                )
-
-            targets = dict(enumerate(targets))
-
-        for channel, target_us in targets.items():
-            self._validate_channel(channel)
-            self._validate_target_us(target_us)
-
-        self._set_targets(targets)
-
-        for channel, target_us in targets.items():
-            self._targets[channel] = target_us
+        target = self._targets[channel]
+        return (
+                target is not None
+                and target > 0
+                and abs(target - self.get_position(channel)) > 0.01
+        )
 
     @abstractmethod
-    def _set_targets(self, targets: Mapping[int, float]) -> None:
+    def any_are_moving(self) -> bool:
         ...
+
+    def wait_until_done_moving(self, poll_period: float = 0.1) -> None:
+        """
+        Wait until all servos have reached their target positions.
+
+        Args:
+            poll_period: Time in seconds to wait between checking if servos are still moving.
+        """
+
+        while self.any_are_moving():
+            time.sleep(poll_period)
 
     @_validate_channel_arg
     def set_speed(self, channel: int, speed: int) -> None:
@@ -331,9 +362,6 @@ class Maestro(ABC):
         self.send_cmd(SerialCommands.SET_ACCELERATION, channel, lsb, msb)
         self._accels[channel] = acceleration
 
-    def get_accelerations(self) -> list[Optional[int]]:
-        return list(self._accels)
-
     @_validate_channel_arg
     def get_acceleration(self, channel: int) -> Optional[int]:
         """
@@ -342,61 +370,8 @@ class Maestro(ABC):
         """
         return self._accels[channel]
 
-    @_validate_channel_arg
-    def get_position(self, channel: int) -> float:
-        """
-        Get the current position of the device on the specified channel
-        The result is returned in a measure of quarter-microseconds, which mirrors
-        the Target parameter of setTarget.
-        This is not reading the true servo position, but the last target position sent
-        to the servo. If the Speed is set to below the top speed of the servo, then
-        the position result will align well with the actual servo position, assuming
-        it is not stalled or slowed.
-
-        Raises:
-            TimeoutError: Connection timed out.
-        """
-
-        self.send_cmd(SerialCommands.GET_POSITION, channel)
-        data = self._read(2)
-        return (data[1] << 8 | data[0]) / 4
-
-    def get_positions(self) -> list[float]:
-        return list(self.get_position(c) for c in range(self.channels))
-
-    @_validate_channel_arg
-    def is_moving(self, channel: int) -> bool:
-        """
-        Test to see if a servo has reached the set target position.  This only provides
-        useful results if the Speed parameter is set slower than the maximum speed of
-        the servo.  Servo range must be defined first using setRange. See setRange comment.
-
-        ***Note if target position goes outside of Maestro's allowable range for the
-        channel, then the target can never be reached, so it will appear to always be
-        moving to the target.
-        """
-
-        target = self._targets[channel]
-        return (
-                target is not None
-                and target > 0
-                and abs(target - self.get_position(channel)) > 0.01
-        )
-
-    @abstractmethod
-    def any_are_moving(self) -> bool:
-        ...
-
-    def wait_until_done_moving(self, poll_period: float = 0.1) -> None:
-        """
-        Wait until all servos have reached their target positions.
-
-        Args:
-            poll_period: Time in seconds to wait between checking if servos are still moving.
-        """
-
-        while self.any_are_moving():
-            time.sleep(poll_period)
+    def get_accelerations(self) -> list[Optional[int]]:
+        return list(self._accels)
 
     def run_script_subroutine(self, subroutine: int, parameter: int = None) -> None:
         """
@@ -426,6 +401,23 @@ class Maestro(ABC):
                 parameter_msb,
             )
 
+    def script_is_running(self) -> bool:
+        """
+        Returns True if a script is running; False otherwise.
+
+        Raises:
+            TimeoutError: Connection timed out.
+        """
+
+        self.send_cmd(SerialCommands.GET_SCRIPT_STATUS)
+
+        is_running = 0
+        return self._read(1)[0] == is_running
+
+    def stop_script(self) -> None:
+        """Causes the script to stop, if it is currently running."""
+        self.send_cmd(SerialCommands.STOP_SCRIPT)
+
     def get_errors(self) -> set['MaestroError']:
         """
         Returns a set of the errors that have occurred on the Maestro.
@@ -440,6 +432,14 @@ class Maestro(ABC):
         error_code = data[1] << 8 | data[0]
 
         return MaestroError.from_error_code(error_code)
+
+    def send_cmd(self, *args: int) -> None:
+        """Send a Pololu command out the serial port."""
+        self.send_cmd_bytes(bytes(args))
+
+    def send_cmd_bytes(self, cmd: Union[bytes, bytearray]) -> None:
+        self._conn.write(self._pololu_cmd + cmd)
+        self._conn.flush()
 
 
 class MicroMaestro(Maestro):
