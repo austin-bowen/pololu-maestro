@@ -6,7 +6,7 @@ from test_maestro.conftest import BaseMicroMaestroTest, BaseMiniMaestroTest
 
 
 class TestMicroMaestroSetTargets(BaseMicroMaestroTest):
-    def test_valid_channel_and_target(self):
+    def test_valid_target_dict(self):
         targets = {
             0: 1500,
             1: 0,
@@ -26,6 +26,26 @@ class TestMicroMaestroSetTargets(BaseMicroMaestroTest):
             for suffix in suffixes
         ])
         assert self.conn.flush.call_count == 3
+
+    def test_valid_target_list(self):
+        targets = [0, 1, 2, 4, 8, 16]
+
+        suffixes = [
+            b'\x00\x00\x00',
+            b'\x01\x04\x00',
+            b'\x02\x08\x00',
+            b'\x03\x10\x00',
+            b'\x04\x20\x00',
+            b'\x05\x40\x00',
+        ]
+
+        self.maestro.set_targets(targets)
+
+        self.conn.write.assert_has_calls([
+            call(b'\xAA\x0C\x04' + suffix)
+            for suffix in suffixes
+        ])
+        assert self.conn.flush.call_count == 6
 
     def test_setattr_with_valid_channel_and_target(self):
         self.maestro.set_targets = Mock()
