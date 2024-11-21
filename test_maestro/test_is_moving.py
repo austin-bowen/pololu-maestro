@@ -5,7 +5,7 @@ import pytest
 from test_maestro.conftest import BaseMaestroTest
 
 
-class TestMaestroGetPosition(BaseMaestroTest):
+class TestMaestroIsMoving(BaseMaestroTest):
     @pytest.mark.parametrize('expected', [False, True])
     def test_valid_channel_and_target(self, expected: bool):
         target = 2000.
