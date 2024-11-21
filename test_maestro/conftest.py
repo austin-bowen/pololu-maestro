@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import serial
 
-from maestro import Maestro, MicroMaestro, MiniMaestro, SerialCommands
+from maestro import DEFAULT_DEVICE_NUMBER, Maestro, MicroMaestro, MiniMaestro
 
 
 class MaestroTestImpl(Maestro):
@@ -29,7 +29,7 @@ class BaseMaestroTest:
     def build_maestro(self) -> Maestro:
         return MaestroTestImpl(
             self.conn,
-            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
+            device=DEFAULT_DEVICE_NUMBER,
             safe_close=False,
         )
 
@@ -53,7 +53,7 @@ class BaseMicroMaestroTest(BaseMaestroTest):
     def build_maestro(self) -> Maestro:
         return MicroMaestro(
             self.conn,
-            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
+            device=DEFAULT_DEVICE_NUMBER,
             safe_close=False,
         )
 
@@ -63,6 +63,6 @@ class BaseMiniMaestroTest(BaseMaestroTest):
         return MiniMaestro(
             12,
             self.conn,
-            device=SerialCommands.DEFAULT_DEVICE_NUMBER,
+            device=DEFAULT_DEVICE_NUMBER,
             safe_close=False,
         )

@@ -19,57 +19,7 @@ import serial
 from serial import Serial
 
 DEFAULT_TTY = 'COM5' if platform.system() == 'Windows' else '/dev/ttyACM0'
-
-
-class SerialCommands:
-    # Headers
-    POLOLU_PROTOCOL = 0xAA
-    DEFAULT_DEVICE_NUMBER = 0x0C
-
-    # Commands
-    SET_TARGET = 0x04
-    SET_SPEED = 0x07
-    SET_ACCELERATION = 0x09
-    GET_POSITION = 0x10
-    GET_ERRORS = 0x21
-    GO_HOME = 0x22
-    STOP_SCRIPT = 0x24
-    RESTART_SCRIPT_AT_SUBROUTINE = 0x27
-    RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER = 0x28
-    GET_SCRIPT_STATUS = 0x2E
-    # - Not available on the Micro
-    SET_PWM = 0x0A
-    GET_MOVING_STATE = 0x13
-    SET_MULTIPLE_TARGETS = 0x1F
-
-
-class MaestroError(Enum):
-    """
-    See the documentation for descriptions of these errors:
-    https://www.pololu.com/docs/0J40/4.e
-    """
-
-    SERIAL_SIGNAL_ERROR = 1 << 0
-    SERIAL_OVERRUN_ERROR = 1 << 1
-    SERIAL_BUFFER_FULL_ERROR = 1 << 2
-    SERIAL_CRC_ERROR = 1 << 3
-    SERIAL_PROTOCOL_ERROR = 1 << 4
-    SERIAL_TIMEOUT_ERROR = 1 << 5
-    SCRIPT_STACK_ERROR = 1 << 6
-    SCRIPT_CALL_STACK_ERROR = 1 << 7
-    SCRIPT_PROGRAM_COUNTER_ERROR = 1 << 8
-
-    @classmethod
-    def from_error_code(cls, error_code: int) -> set['MaestroError']:
-        return {error for error in cls if error.value & error_code}
-
-
-def _get_lsb_msb(value: int) -> tuple[int, int]:
-    if not (0 <= value <= 16383):
-        raise ValueError(f'value was {value}; must be in the range [0, 16383].')
-    lsb = value & 0x7F  # 7 bits for least significant byte
-    msb = (value >> 7) & 0x7F  # shift 7 and take next 7 bits for msb
-    return lsb, msb
+DEFAULT_DEVICE_NUMBER = 0x0C
 
 
 class Maestro(ABC):
@@ -85,8 +35,6 @@ class Maestro(ABC):
     assumes.  If two or more controllers are connected to different serial
     ports, or you are using a Windows OS, you can provide the tty port.  For
     example, '/dev/ttyACM2' or for Windows, something like 'COM5'.
-
-    TODO: Automatic serial reconnect.
     """
 
     def __init__(
@@ -478,7 +426,7 @@ class Maestro(ABC):
                 parameter_msb,
             )
 
-    def get_errors(self) -> set[MaestroError]:
+    def get_errors(self) -> set['MaestroError']:
         """
         Returns a set of the errors that have occurred on the Maestro.
         This also clears the error codes.
@@ -500,7 +448,7 @@ class MicroMaestro(Maestro):
             cls,
             tty: str = DEFAULT_TTY,
             timeout: float = None,
-            device: int = SerialCommands.DEFAULT_DEVICE_NUMBER,
+            device: int = DEFAULT_DEVICE_NUMBER,
             safe_close: bool = True,
     ) -> 'MicroMaestro':
         """
@@ -553,7 +501,7 @@ class MiniMaestro(Maestro):
             channels: int,
             tty: str = DEFAULT_TTY,
             timeout: float = None,
-            device: int = SerialCommands.DEFAULT_DEVICE_NUMBER,
+            device: int = DEFAULT_DEVICE_NUMBER,
             safe_close: bool = True,
     ) -> 'MiniMaestro':
         """
@@ -660,6 +608,56 @@ class MiniMaestro(Maestro):
 
         self.send_cmd(SerialCommands.GET_MOVING_STATE)
         return self._read(1)[0] == 1
+
+
+class SerialCommands:
+    # Headers
+    POLOLU_PROTOCOL = 0xAA
+
+    # Commands
+    SET_TARGET = 0x04
+    SET_SPEED = 0x07
+    SET_ACCELERATION = 0x09
+    GET_POSITION = 0x10
+    GET_ERRORS = 0x21
+    GO_HOME = 0x22
+    STOP_SCRIPT = 0x24
+    RESTART_SCRIPT_AT_SUBROUTINE = 0x27
+    RESTART_SCRIPT_AT_SUBROUTINE_WITH_PARAMETER = 0x28
+    GET_SCRIPT_STATUS = 0x2E
+    # - Not available on the Micro
+    SET_PWM = 0x0A
+    GET_MOVING_STATE = 0x13
+    SET_MULTIPLE_TARGETS = 0x1F
+
+
+class MaestroError(Enum):
+    """
+    See the documentation for descriptions of these errors:
+    https://www.pololu.com/docs/0J40/4.e
+    """
+
+    SERIAL_SIGNAL_ERROR = 1 << 0
+    SERIAL_OVERRUN_ERROR = 1 << 1
+    SERIAL_BUFFER_FULL_ERROR = 1 << 2
+    SERIAL_CRC_ERROR = 1 << 3
+    SERIAL_PROTOCOL_ERROR = 1 << 4
+    SERIAL_TIMEOUT_ERROR = 1 << 5
+    SCRIPT_STACK_ERROR = 1 << 6
+    SCRIPT_CALL_STACK_ERROR = 1 << 7
+    SCRIPT_PROGRAM_COUNTER_ERROR = 1 << 8
+
+    @classmethod
+    def from_error_code(cls, error_code: int) -> set['MaestroError']:
+        return {error for error in cls if error.value & error_code}
+
+
+def _get_lsb_msb(value: int) -> tuple[int, int]:
+    if not (0 <= value <= 16383):
+        raise ValueError(f'value was {value}; must be in the range [0, 16383].')
+    lsb = value & 0x7F  # 7 bits for least significant byte
+    msb = (value >> 7) & 0x7F  # shift 7 and take next 7 bits for msb
+    return lsb, msb
 
 
 def main() -> None:
