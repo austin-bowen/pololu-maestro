@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pololu-maestro"
-version = "0.0.1"
+version = "1.0.0"
 description = "Python driver for the Pololu Maestro series of servo controllers."
 readme = "README.md"
 requires-python = ">=3.9"
