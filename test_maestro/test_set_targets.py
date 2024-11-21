@@ -55,6 +55,12 @@ class TestMicroMaestroSetTargets(BaseMicroMaestroTest):
 
         self.assert_conn_not_used()
 
+    def test_set_targets_with_invalid_number_of_targets_raises_ValueError(self):
+        with pytest.raises(ValueError):
+            self.maestro.set_targets([0, 1, 2, 3])
+
+        self.assert_conn_not_used()
+
     def test_setattr_with_invalid_number_of_targets_raises_ValueError(self):
         with pytest.raises(ValueError):
             self.maestro[:2] = [0, 1, 2]
