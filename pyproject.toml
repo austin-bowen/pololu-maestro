@@ -46,3 +46,6 @@ test = ["pytest", "pytest-cov"]
 "Homepage" = "https://github.com/austin-bowen/pololu-maestro"
 "Bug Reports" = "https://github.com/austin-bowen/pololu-maestro/issues"
 "Source" = "https://github.com/austin-bowen/pololu-maestro"
+
+[tool.setuptools]
+py-modules = ["maestro"]
