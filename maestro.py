@@ -106,8 +106,10 @@ class Maestro(ABC):
 
         self.safe_close = safe_close
 
-        # Track target position for each servo
+        # Track target position, speed, and acceleration for each servo
         self._targets_us: list[float] = [0.] * self.channels
+        self._speeds: list[Optional[int]] = [None] * self.channels
+        self._accels: list[Optional[int]] = [None] * self.channels
 
         # Servo minimum and maximum targets can be restricted to protect components
         self.target_limits_us: list[tuple[Optional[float], Optional[float]]] = [(None, None)] * self.channels
@@ -373,6 +375,15 @@ class Maestro(ABC):
 
         lsb, msb = _get_lsb_msb(speed)
         self.send_cmd(bytes((SerialCommands.SET_SPEED, channel, lsb, msb)))
+        self._speeds[channel] = speed
+
+    @_validate_channel_arg
+    def get_speed(self, channel: int) -> Optional[int]:
+        """
+        Get the last speed setting for the channel.
+        0 = unrestricted. None if not yet set.
+        """
+        return self._speeds[channel]
 
     @_validate_channel_arg
     def set_acceleration(self, channel: int, acceleration: int) -> None:
@@ -385,6 +396,15 @@ class Maestro(ABC):
 
         lsb, msb = _get_lsb_msb(acceleration)
         self.send_cmd(bytes((SerialCommands.SET_ACCELERATION, channel, lsb, msb)))
+        self._accels[channel] = acceleration
+
+    @_validate_channel_arg
+    def get_acceleration(self, channel: int) -> Optional[int]:
+        """
+        Get the last acceleration setting for the channel.
+        0 = unrestricted. None if not yet set.
+        """
+        return self._accels[channel]
 
     @_validate_channel_arg
     def get_position(self, channel: int) -> float:
