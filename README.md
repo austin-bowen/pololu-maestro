@@ -45,7 +45,7 @@ with MiniMaestro.connect(channels=12) as maestro:
 
 ## Methods
 
-The `Maestro` classes have the following methods:
+The `MicroMaestro` and `MiniMaestro` classes have the following methods:
 
 ### Positioning
 - `set_target(channel: int, target_us: float)`: Set the target position of a servo.
