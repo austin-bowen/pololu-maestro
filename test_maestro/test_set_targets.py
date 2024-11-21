@@ -1,4 +1,4 @@
-from unittest.mock import call
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -27,17 +27,37 @@ class TestMicroMaestroSetTargets(BaseMicroMaestroTest):
         ])
         assert self.conn.flush.call_count == 3
 
+    def test_setattr_with_valid_channel_and_target(self):
+        self.maestro.set_targets = Mock()
+
+        self.maestro[:3] = [1500, 0, 4095.75]
+
+        self.maestro.set_targets.assert_called_once_with({0: 1500, 1: 0, 2: 4095.75})
+
+    def test_setattr_with_single_target(self):
+        self.maestro.set_targets = Mock()
+
+        self.maestro[:3] = 1500
+
+        self.maestro.set_targets.assert_called_once_with({0: 1500, 1: 1500, 2: 1500})
+
     @pytest.mark.parametrize('channel', [-1, 6])
-    def test_invalid_channel_raises_ValueError(self, channel: int):
+    def test_set_targets_with_invalid_channel_raises_ValueError(self, channel: int):
         with pytest.raises(ValueError):
             self.maestro.set_targets({0: 1500, channel: 1500})
 
         self.assert_conn_not_used()
 
     @pytest.mark.parametrize('target_us', [-1, 4095.751])
-    def test_invalid_target_raises_ValueError(self, target_us: float):
+    def test_set_targets_with_invalid_target_raises_ValueError(self, target_us: float):
         with pytest.raises(ValueError):
             self.maestro.set_targets({0: 1500, 1: target_us})
+
+        self.assert_conn_not_used()
+
+    def test_setattr_with_invalid_number_of_targets_raises_ValueError(self):
+        with pytest.raises(ValueError):
+            self.maestro[:2] = [0, 1, 2]
 
         self.assert_conn_not_used()
 
