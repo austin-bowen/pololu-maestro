@@ -10,7 +10,7 @@ Originally cloned from: [FRC4564/Maestro](https://github.com/FRC4564/Maestro/)
 ```python
 from maestro import MicroMaestro, MiniMaestro
 
-# Connect to a Mini Maestro
+# Connect to a Micro Maestro
 with MicroMaestro.connect() as maestro:
     # Set targets of servos 0-3 to 1500, 1600, 1700, and 1800 us
     maestro.set_target(0, 1500)
