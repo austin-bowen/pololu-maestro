@@ -13,7 +13,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum
-from typing import Mapping, Optional, Union
+from typing import Literal, Mapping, Optional, Union
 
 import serial
 from serial import Serial
@@ -36,6 +36,40 @@ class Maestro(ABC):
     ports, or you are using a Windows OS, you can provide the tty port.  For
     example, '/dev/ttyACM2' or for Windows, something like 'COM5'.
     """
+
+    @staticmethod
+    def connect(
+            model: Union[Literal['micro', 'mini12', 'mini18', 'mini24'], str],
+            tty: str = DEFAULT_TTY,
+            timeout: float = None,
+            device: int = DEFAULT_DEVICE_NUMBER,
+            safe_close: bool = True,
+    ) -> Union['MicroMaestro', 'MiniMaestro']:
+        """
+        Connect to a Maestro servo controller.
+
+        Args:
+            model:
+                The model of the Maestro to connect to.
+                Must be one of 'micro', 'mini12', 'mini18', or 'mini24'.
+            tty:
+                The tty port to connect to.
+            timeout:
+                Timeout in seconds for serial communication.
+            device:
+                The device number.
+            safe_close:
+                If `True` (default), tells the Maestro to stop sending servo
+                signals before closing the connection.
+        """
+
+        conn = serial.Serial(tty, timeout=timeout)
+
+        if model == 'micro':
+            return MicroMaestro(conn, device, safe_close)
+        else:
+            channels = int(model[-2:])
+            return MiniMaestro(channels, conn, device, safe_close)
 
     def __init__(
             self,
@@ -485,32 +519,6 @@ class Maestro(ABC):
 
 
 class MicroMaestro(Maestro):
-    @classmethod
-    def connect(
-            cls,
-            tty: str = DEFAULT_TTY,
-            timeout: float = None,
-            device: int = DEFAULT_DEVICE_NUMBER,
-            safe_close: bool = True,
-    ) -> 'MicroMaestro':
-        """
-        Create a Maestro instance for the Micro Maestro.
-
-        Args:
-            tty:
-                The tty port to connect to.
-            timeout:
-                Timeout in seconds for serial communication.
-            device:
-                The device number.
-            safe_close:
-                If `True` (default), tells the Maestro to stop sending servo
-                signals before closing the connection.
-        """
-
-        conn = serial.Serial(tty, timeout=timeout)
-        return cls(conn, device, safe_close)
-
     @property
     def channels(self) -> int:
         return 6
@@ -536,35 +544,6 @@ class MiniMaestro(Maestro):
 
         self._channels = channels
         super().__init__(conn, device, safe_close)
-
-    @classmethod
-    def connect(
-            cls,
-            channels: int,
-            tty: str = DEFAULT_TTY,
-            timeout: float = None,
-            device: int = DEFAULT_DEVICE_NUMBER,
-            safe_close: bool = True,
-    ) -> 'MiniMaestro':
-        """
-        Create a Maestro instance for the Micro Maestro.
-
-        Args:
-            channels:
-                Number of channels on the Maestro. Must be 12, 18, or 24.
-            tty:
-                The tty port to connect to.
-            timeout:
-                Timeout in seconds for serial communication.
-            device:
-                The device number.
-            safe_close:
-                If `True` (default), tells the Maestro to stop sending servo
-                signals before closing the connection.
-        """
-
-        conn = serial.Serial(tty, timeout=timeout)
-        return cls(channels, conn, device, safe_close)
 
     @property
     def channels(self) -> int:
@@ -716,19 +695,10 @@ def main() -> None:
     )
     args = arg_parser.parse_args()
 
-    model = args.model
-    tty = args.tty
+    print(f'Connecting to {args.model} Maestro on {args.tty!r}...')
+    with Maestro.connect(args.model, tty=args.tty) as maestro:
+        print('Connected!')
 
-    if model == 'micro':
-        print(f'Connecting to Micro Maestro on {tty!r}...')
-        maestro = MicroMaestro.connect(tty=tty)
-    else:
-        channels = int(model[-2:])
-        print(f'Connected to Mini Maestro {channels} on {tty!r}...')
-        maestro = MiniMaestro.connect(channels, tty=tty)
-    print('Connected!')
-
-    with maestro:
         if maestro.script_is_running():
             print('Stopping running script... ', end='', flush=True)
             maestro.stop_script()

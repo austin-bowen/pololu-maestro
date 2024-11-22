@@ -8,10 +8,10 @@ Originally cloned from: [FRC4564/Maestro](https://github.com/FRC4564/Maestro/)
 # Example Usage
 
 ```python
-from maestro import MicroMaestro, MiniMaestro
+from maestro import Maestro
 
 # Connect to a Micro Maestro
-with MicroMaestro.connect() as maestro:
+with Maestro.connect('micro') as maestro:
     # Set targets of servos 0-3 to 1500, 1600, 1700, and 1800 us
     maestro.set_target(0, 1500)
     maestro[1] = 1600
@@ -26,7 +26,7 @@ with MicroMaestro.connect() as maestro:
 # to the servos, and the connection is automatically closed
 
 # Connect to a Mini Maestro 12
-with MiniMaestro.connect(channels=12) as maestro:
+with Maestro.connect('mini12') as maestro:
     # Servo position may not equal the target
     # if speed or acceleration are set, e.g.:
     # Move servo 10 from 1000 to 2000 us at low speed
