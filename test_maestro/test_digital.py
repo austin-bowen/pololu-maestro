@@ -34,3 +34,8 @@ class TestMaestroDigital(BaseMaestroTest):
     def test_get_digital_with_invalid_channel_raises_ValueError(self, channel: int):
         with pytest.raises(ValueError):
             self.maestro.get_digital(channel)
+
+    @pytest.mark.parametrize('channel', [-1, 3])
+    def test_set_digital_with_invalid_channel_raises_ValueError(self, channel: int):
+        with pytest.raises(ValueError):
+            self.maestro.set_digital(channel, True)
