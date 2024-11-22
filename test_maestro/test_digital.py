@@ -20,8 +20,10 @@ class TestMaestroDigital(BaseMaestroTest):
         self.maestro._get_position_raw.assert_called_once_with(channel)
 
     @pytest.mark.parametrize('channel, value, expected_target', [
-        (0, False, 0),
+        (1, False, 0),
+        (2, False, 0),
         (1, True, 6000),
+        (2, True, 6000),
     ])
     def test_set_digital(self, channel: int, value: bool, expected_target: int):
         self.maestro._set_target_raw = Mock()
