@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from test_maestro.conftest import BaseMaestroTest
+from test_maestro.conftest import BaseMaestroTest, MaestroTestImpl
 
 
 class TestMaestroGetAnalog(BaseMaestroTest):
@@ -26,7 +26,7 @@ class TestMaestroGetAnalog(BaseMaestroTest):
         (18, 12),  # Even though there are 18 channels, only 0..11 are valid
     ])
     def test_get_analog_with_invalid_channel_raises_ValueError(self, channels: int, channel: int):
-        # noinspection PyPropertyAccess
+        assert isinstance(self.maestro, MaestroTestImpl)
         self.maestro.channels = channels
 
         with pytest.raises(ValueError):
