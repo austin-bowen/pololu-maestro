@@ -13,6 +13,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum
+from threading import RLock
 from typing import Literal, Mapping, Optional, Union
 
 import serial
@@ -35,6 +36,8 @@ class Maestro(ABC):
     assumes.  If two or more controllers are connected to different serial
     ports, or you are using a Windows OS, you can provide the tty port.  For
     example, '/dev/ttyACM2' or for Windows, something like 'COM5'.
+
+    This class is thread-safe.
     """
 
     @staticmethod
@@ -88,6 +91,7 @@ class Maestro(ABC):
         """
 
         self._conn = conn
+        self._conn_lock = RLock()
 
         # Command lead-in and device number are sent for each Pololu serial command.
         self._pololu_cmd = bytes((SerialCommands.POLOLU_PROTOCOL, device))
@@ -164,18 +168,6 @@ class Maestro(ABC):
             targets = {c: target_us for c in channels}
 
         self.set_targets(targets)
-
-    def _read(self, byte_count: int) -> bytes:
-        """
-        Raises:
-            TimeoutError: Connection timed out waiting to read the specified number of bytes.
-        """
-
-        assert byte_count > 0
-        data = self._conn.read(byte_count)
-        if len(data) != byte_count:
-            raise TimeoutError(f'Tried to read {byte_count} bytes, but only got {len(data)}.')
-        return data
 
     def close(self) -> None:
         """Cleanup by closing USB serial port."""
@@ -280,8 +272,7 @@ class Maestro(ABC):
         return self._get_position_raw(channel) / 4
 
     def _get_position_raw(self, channel: int) -> int:
-        self.send_cmd(SerialCommands.GET_POSITION, channel)
-        data = self._read(2)
+        data = self.send_cmd(SerialCommands.GET_POSITION, channel, read=2)
         return data[1] << 8 | data[0]
 
     def get_positions(self) -> list[float]:
@@ -485,10 +476,10 @@ class Maestro(ABC):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(SerialCommands.GET_SCRIPT_STATUS)
+        response = self.send_cmd(SerialCommands.GET_SCRIPT_STATUS, read=1)
 
         is_running = 0
-        return self._read(1)[0] == is_running
+        return response[0] == is_running
 
     def stop_script(self) -> None:
         """Causes the script to stop, if it is currently running."""
@@ -503,19 +494,35 @@ class Maestro(ABC):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(SerialCommands.GET_ERRORS)
-        data = self._read(2)
+        data = self.send_cmd(SerialCommands.GET_ERRORS, read=2)
         error_code = data[1] << 8 | data[0]
 
         return MaestroError.from_error_code(error_code)
 
-    def send_cmd(self, *args: int) -> None:
-        """Send a Pololu command out the serial port."""
-        self.send_cmd_bytes(bytes(args))
+    def send_cmd(self, *args: int, read: int = 0) -> bytes:
+        """Send a Pololu command to the Maestro, and optionally read response bytes back."""
+        return self.send_cmd_bytes(bytes(args), read=read)
 
-    def send_cmd_bytes(self, cmd: Union[bytes, bytearray]) -> None:
-        self._conn.write(self._pololu_cmd + cmd)
-        self._conn.flush()
+    def send_cmd_bytes(self, cmd: Union[bytes, bytearray], read: int = 0) -> bytes:
+        with self._conn_lock:
+            self._conn.write(self._pololu_cmd + cmd)
+            self._conn.flush()
+            return self._read(read)
+
+    def _read(self, byte_count: int) -> bytes:
+        """
+        Raises:
+            TimeoutError: Connection timed out waiting to read the specified number of bytes.
+        """
+
+        if not byte_count:
+            return b''
+
+        data = self._conn.read(byte_count)
+        if len(data) != byte_count:
+            raise TimeoutError(f'Tried to read {byte_count} bytes, but only got {len(data)}.')
+
+        return data
 
 
 class MicroMaestro(Maestro):
@@ -627,8 +634,8 @@ class MiniMaestro(Maestro):
             TimeoutError: Connection timed out.
         """
 
-        self.send_cmd(SerialCommands.GET_MOVING_STATE)
-        return self._read(1)[0] == 1
+        response = self.send_cmd(SerialCommands.GET_MOVING_STATE, read=1)
+        return response[0] != 0
 
 
 class SerialCommands:
