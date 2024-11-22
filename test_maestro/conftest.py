@@ -7,9 +7,15 @@ from maestro import DEFAULT_DEVICE_NUMBER, Maestro, MicroMaestro, MiniMaestro
 
 
 class MaestroTestImpl(Maestro):
+    _channels = 3
+
     @property
     def channels(self) -> int:
-        return 3
+        return self._channels
+
+    @channels.setter
+    def channels(self, value: int) -> None:
+        self._channels = value
 
     def _set_targets(self, targets: Mapping[int, float]) -> None:
         raise NotImplementedError()
