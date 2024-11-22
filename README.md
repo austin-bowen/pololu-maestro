@@ -73,6 +73,12 @@ The `MicroMaestro` and `MiniMaestro` classes have the following methods:
 - `get_acceleration(channel: int) -> int`
 - `get_accelerations() -> list[int]`
 
+### Analog & Digital I/O
+- `set_digital(channel: int, value: bool)`
+- `get_digital(channel: int) -> bool`
+- `get_analog(channel: int) -> float`
+- `set_pwm(on_time_us: float, period_us: float)` (Mini Maestro only)
+
 ### Scripting
 - `run_script_subroutine(subroutine: int, parameter: int = None)`
 - `script_is_running() -> bool`
@@ -80,8 +86,6 @@ The `MicroMaestro` and `MiniMaestro` classes have the following methods:
 
 ### Other
 - `get_errors() -> int`
-- `MiniMaestro` only:
-  - `set_pwm(on_time_us: float, period_us: float)`
 
 ## Interactive Mode
 

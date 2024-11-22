@@ -179,10 +179,13 @@ class Maestro(ABC):
             target_us = max_target_us
 
         target = int(round(4 * target_us))
-        lsb, msb = _get_lsb_msb(target)
-        self.send_cmd(SerialCommands.SET_TARGET, channel, lsb, msb)
+        self._set_target_raw(channel, target)
 
         self._targets[channel] = target_us
+
+    def _set_target_raw(self, channel: int, target: int) -> None:
+        lsb, msb = _get_lsb_msb(target)
+        self.send_cmd(SerialCommands.SET_TARGET, channel, lsb, msb)
 
     @_validate_channel_arg
     def get_target(self, channel: int) -> float:
@@ -240,9 +243,12 @@ class Maestro(ABC):
             TimeoutError: Connection timed out.
         """
 
+        return self._get_position_raw(channel) / 4
+
+    def _get_position_raw(self, channel: int) -> int:
         self.send_cmd(SerialCommands.GET_POSITION, channel)
         data = self._read(2)
-        return (data[1] << 8 | data[0]) / 4
+        return data[1] << 8 | data[0]
 
     def get_positions(self) -> list[float]:
         return list(self.get_position(c) for c in range(self.channels))
@@ -375,6 +381,39 @@ class Maestro(ABC):
 
     def get_accelerations(self) -> list[Optional[int]]:
         return list(self._accels)
+
+    @_validate_channel_arg
+    def get_digital(self, channel: int) -> bool:
+        """
+        Returns the state of the specified digital channel.
+
+        The channel must be configured as an input using the Maestro Control Center.
+        """
+
+        return self._get_position_raw(channel) >= 512
+
+    @_validate_channel_arg
+    def set_digital(self, channel: int, value: bool) -> None:
+        """
+        Sets the state of the specified digital channel.
+
+        The channel must be configured as a digital output using the Maestro Control Center.
+        """
+
+        self._set_target_raw(channel, 6000 if value else 0)
+
+    @_validate_channel_arg
+    def get_analog(self, channel: int) -> float:
+        """
+        Returns the voltage on the specified analog input channel.
+
+        The channel must be configured as an input using the Maestro Control Center.
+        """
+
+        if not (0 <= channel <= 11):
+            raise ValueError(f'Analog channels must be in the range [0, 11]; got {channel}.')
+
+        return self._get_position_raw(channel) * 5 / 1023
 
     def run_script_subroutine(self, subroutine: int, parameter: int = None) -> None:
         """
