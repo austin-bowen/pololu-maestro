@@ -45,9 +45,13 @@ class BaseMaestroTest:
     def assert_read(self) -> None:
         self.conn.read.assert_called_once()
 
-    def assert_wrote(self, data: bytes) -> None:
-        self.conn.write.assert_called_once_with(data)
-        self.conn.flush.assert_called_once()
+    def assert_wrote(self, data: bytes = None) -> None:
+        if data is None:
+            self.conn.write.assert_called()
+            self.conn.flush.assert_called()
+        else:
+            self.conn.write.assert_called_once_with(data)
+            self.conn.flush.assert_called_once()
 
     def assert_conn_not_used(self) -> None:
         self.conn.write.assert_not_called()

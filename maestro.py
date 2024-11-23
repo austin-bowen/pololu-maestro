@@ -10,6 +10,7 @@ These functions provide access to many of the Maestro's capabilities using the P
 import argparse
 import platform
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from enum import Enum
@@ -18,6 +19,10 @@ from typing import Literal, Mapping, Optional, Union
 
 import serial
 from serial import Serial
+
+MIN_PWM_PERIOD_US = 4 / 48
+MAX_PWM_PERIOD_US = 16383 / 48
+BAD_PWM_PERIODS = {1024, 4096}
 
 DEFAULT_TTY = 'COM5' if platform.system() == 'Windows' else '/dev/ttyACM0'
 DEFAULT_DEVICE_NUMBER = 0x0C
@@ -598,16 +603,16 @@ class MiniMaestro(Maestro):
         Args:
             duty_cycle: Fraction of the period that the PWM signal is high. Range: [0, 1].
             period_us:
-                PWM period in microseconds. Default: 340. Range: [1, 16384].
+                PWM period in microseconds. Default: 340. Range: [0.083, 341.3125].
                 Recommended periods for maximum resolution:
                 - 21.25 us (47.1 kHz)
                 - 85 us (11.7 kHz)
                 - 340 us (2.94 kHz)
         """
 
-        if period_us > 341.3125:
+        if not (MIN_PWM_PERIOD_US <= period_us <= MAX_PWM_PERIOD_US):
             raise ValueError(
-                f'period_us must be less than or equal to 341.3125; '
+                f'period_us must be in the range [{MIN_PWM_PERIOD_US}, {MAX_PWM_PERIOD_US}]; '
                 f'got period_us={period_us}.'
             )
         if not (0 <= duty_cycle <= 1):
@@ -620,6 +625,13 @@ class MiniMaestro(Maestro):
         on_time_us = period_us * duty_cycle
         on_time = int(round(48 * on_time_us))
         period = int(round(48 * period_us))
+
+        if period in BAD_PWM_PERIODS:
+            warnings.warn(
+                f'The special periods 1024 and 4096 are not recommended, '
+                f'since 100% duty cycle is not available at these values. '
+                f'Got period={period} from period_us={period_us}.'
+            )
 
         self.send_cmd(
             SerialCommands.SET_PWM,
