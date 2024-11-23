@@ -1,5 +1,6 @@
 import pytest
 
+from maestro import MiniMaestro
 from test_maestro.conftest import BaseMiniMaestroTest
 
 
@@ -11,8 +12,16 @@ class TestMiniMaestroSetPwm(BaseMiniMaestroTest):
     ])
     def test_valid_on_time_and_period(self, period_us: float, duty_cycle: float, suffix: bytes):
         # noinspection PyUnresolvedReferences
-        self.maestro.set_pwm(period_us, duty_cycle)
+        assert isinstance(self.maestro, MiniMaestro)
+        self.maestro.set_pwm(duty_cycle, period_us=period_us)
         self.assert_wrote(b'\xAA\x0C\x0A' + suffix)
+
+    def test_default_period_is_340_us(self):
+        # noinspection PyUnresolvedReferences
+        self.maestro.set_pwm(0.)
+
+        period_of_340_us_as_bytes = b'\x40\x7F'
+        self.assert_wrote(b'\xAA\x0C\x0A\x00\x00' + period_of_340_us_as_bytes)
 
     @pytest.mark.parametrize('period_us, duty_cycle', [
         (100, -0.01),
@@ -23,6 +32,6 @@ class TestMiniMaestroSetPwm(BaseMiniMaestroTest):
     def test_invalid_args_raises_ValueError(self, period_us: float, duty_cycle: float):
         with pytest.raises(ValueError):
             # noinspection PyUnresolvedReferences
-            self.maestro.set_pwm(period_us, duty_cycle)
+            self.maestro.set_pwm(duty_cycle, period_us=period_us)
 
         self.assert_conn_not_used()

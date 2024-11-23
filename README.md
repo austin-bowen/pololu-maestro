@@ -77,7 +77,7 @@ The `MicroMaestro` and `MiniMaestro` classes have the following methods:
 - `set_digital(channel: int, value: bool)`
 - `get_digital(channel: int) -> bool`
 - `get_analog(channel: int) -> float`
-- `set_pwm(period_us: float, duty_cycle: float)` (Mini Maestro only)
+- `set_pwm(duty_cycle: float, period_us: float = 340)` (Mini Maestro only)
 
 ### Scripting
 - `run_script_subroutine(subroutine: int, parameter: int = None)`

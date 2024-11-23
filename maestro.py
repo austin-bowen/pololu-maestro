@@ -590,14 +590,19 @@ class MiniMaestro(Maestro):
                     cmd += bytes(_get_lsb_msb(target))
                 self.send_cmd_bytes(cmd)
 
-    def set_pwm(self, period_us: float, duty_cycle: float) -> None:
+    def set_pwm(self, duty_cycle: float, period_us: float = 340.) -> None:
         """
         Sets the PWM output to the specified on time and period.
         This command is not available on the Micro Maestro.
 
         Args:
-            period_us: PWM period in microseconds.
             duty_cycle: Fraction of the period that the PWM signal is high. Range: [0, 1].
+            period_us:
+                PWM period in microseconds. Default: 340. Range: [1, 16384].
+                Recommended periods for maximum resolution:
+                - 21.25 us (47.1 kHz)
+                - 85 us (11.7 kHz)
+                - 340 us (2.94 kHz)
         """
 
         if period_us > 341.3125:
