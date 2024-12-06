@@ -199,20 +199,24 @@ class Maestro(ABC):
         If channel is configured for digital output, values < 6000 = Low output
         """
 
+        target_us = self._apply_limits(channel, target_us)
+
         self._validate_target_us(target_us)
-
-        min_target_us, max_target_us = self.get_limits(channel)
-
-        if min_target_us is not None and target_us < min_target_us:
-            target_us = min_target_us
-
-        if max_target_us is not None and target_us > max_target_us:
-            target_us = max_target_us
 
         target = int(round(4 * target_us))
         self._set_target_raw(channel, target)
 
         self._targets[channel] = target_us
+
+    def _apply_limits(self, channel: int, target_us: float) -> float:
+        min_target_us, max_target_us = self.get_limits(channel)
+
+        if min_target_us is not None:
+            target_us = max(target_us, min_target_us)
+        if max_target_us is not None:
+            target_us = min(target_us, max_target_us)
+
+        return target_us
 
     def _set_target_raw(self, channel: int, target: int) -> None:
         lsb, msb = _get_lsb_msb(target)
@@ -244,6 +248,8 @@ class Maestro(ABC):
 
         for channel, target_us in targets.items():
             self._validate_channel(channel)
+
+            targets[channel] = target_us = self._apply_limits(channel, target_us)
             self._validate_target_us(target_us)
 
         self._set_targets(targets)
