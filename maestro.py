@@ -371,15 +371,35 @@ class Maestro(ABC):
             time.sleep(poll_period)
 
     @_validate_channel_arg
-    def set_speed(self, channel: int, speed: int) -> None:
+    def set_speed(self, channel: int, speed: Optional[float]) -> None:
         """
         Set speed of channel
         Speed is measured as 0.25microseconds/10milliseconds
         For the standard 1ms pulse width change to move a servo between extremes, a speed
         of 1 will take 1 minute, and a speed of 60 would take 1 second. Speed of 0 is unrestricted.
+
+        Set the speed of a channel in units of microseconds per second.
+
+        Args:
+            channel:
+                The channel number to set the speed for.
+            speed:
+                The speed to set, in units of microseconds per second. None for unrestricted.
+                The resolution is 25us/s, and the range is limited to [25, 409575].
         """
 
-        lsb, msb = _get_lsb_msb(speed)
+        if speed is None:
+            speed_quarter_us_per_10ms = 0
+        else:
+            if speed <= 0:
+                raise ValueError(f'speed must be positive; got {speed}.')
+
+            speed = min(max(25., speed), 409575.)
+
+            # Convert speed from us/s to 0.25us/10ms
+            speed_quarter_us_per_10ms = round(speed * 0.04)
+
+        lsb, msb = _get_lsb_msb(speed_quarter_us_per_10ms)
         self.send_cmd(SerialCommands.SET_SPEED, channel, lsb, msb)
         self._speeds[channel] = speed
 
